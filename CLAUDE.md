@@ -74,7 +74,8 @@ See `docs/sources.md` (verified 2026-11-18). Greenhouse 9, Teamtailor RSS 5, Wor
 - [x] Design agreed (above)
 - [x] PR 1 skeleton (#3), merged as #21
 - [x] v1 live (2026-11-18): #4–#8 merged via #27, Discord alerts confirmed, actions bumped (#28), README (#29)
-- [ ] More adapters, stacked PRs: RSS (#9) → Ashby (#10) → Workday (#12) → Workable (#13). 23 companies in `config.yaml`
+- [x] More adapters merged (#30–#33): RSS (#9), Ashby (#10), Workday (#12), Workable (#13)
+- [x] Workday disabled in `config.yaml`: Cloudflare 429s GitHub Actions runners. 21 active companies
 - [ ] Wäinö: make the repo public
 - Later / needs design: Oracle (#14), Eightfold (#15), Aiven token (#16), field filters (#18), match score (#19), Gmail (#20). Telegram (#17) parked: not wanted for now.
 
@@ -93,4 +94,4 @@ See `docs/sources.md` (verified 2026-11-18). Greenhouse 9, Teamtailor RSS 5, Wor
 - Ashby and Workable *list* workplace/employment (not inferred). ICEYE marks interns `FullTime`: we keep what the source says.
 - Teamtailor `remoteStatus`: fully/hybrid/none → remote/hybrid/onsite.
 - WordPress feeds only show the newest ~10 posts: fine for new-job alerts.
-- Workday: undocumented API, page size max 20, offsets past the end repeat results, rate-limits (saw a 429 after ~10 quick requests while exploring). `facet` option narrows server-side; ~2–3 requests per board per run.
+- Workday: undocumented API, page size max 20, offsets past the end repeat results. `facet` option narrows server-side; ~2–3 requests per board per run. **Blocked from GitHub Actions**: Cloudflare returns 429 to runner IPs on the first request (home IP gets 200), so it's disabled in `config.yaml` and only usable locally. Don't work around bot protection.

@@ -49,7 +49,7 @@ Legend: ✅ usable (documented or official public feed) · ⚠️ works but awkw
 | **Generic RSS (WordPress)** | Gofore, Rovio | **2** | Official site feeds. |
 | **Ashby** | ICEYE, Supercell, Reaktor | **3** | Documented posting API, no auth shown. Docs frame it as "for your own careers page", with no rate limits or terms stated. |
 | **Workable** | Varjo, Nitor | **2** | Public widget endpoint (undocumented but meant for embedding). |
-| **Workday** | NVIDIA, KONE | **2** | Undocumented CXS API. Very common among big companies. |
+| **Workday** | NVIDIA, KONE | **2** | Undocumented CXS API. Very common among big companies. **Blocked from GitHub Actions** (see below). |
 | Oracle HCM | Nokia | 1 | Undocumented. |
 | Eightfold | Ericsson | 1 | Undocumented, robots-allowed. |
 | ❌ / skip | Remedy (Jobylon), Rightware (Deel), Basemark (email), Metacore (none), Aiven (pending) | 5 | Gmail alerts can cover these later. |
@@ -68,5 +68,6 @@ The strong 4th is **Workday**. NVIDIA and KONE matter a lot for internships, and
 
 - No HTML scraping anywhere above. Every ✅/⚠️ source is a JSON/RSS endpoint served by the ATS or the company for listing its own jobs.
 - robots.txt checked: Greenhouse API (only `/embed/` disallowed), Workable (allow all), Teamtailor (only `/app/`, `/messages/`, `/jobs/internal/` disallowed, and `aihitdata` bot blocked), NVIDIA Workday (career site allowed), Ericsson (explicitly allows `/api/pcsx`), Gofore (allow). Ashby API, Oracle HCM and rovio.com have no robots.txt.
+- **Workday blocks GitHub Actions (2026-11-18).** Both NVIDIA and KONE answered `429 Too Many Requests` (via Cloudflare) to the very first request from a GitHub-hosted runner, while the same request from a home connection got `200`. This is bot protection against datacenter IPs, not our request rate, and we don't work around it. Workday sources are disabled in `config.yaml`; use the career sites' own email job alerts instead (a later Gmail source can read those).
 - For the undocumented ones (Workday, Oracle, Eightfold): hourly or less, one request per board per run, proper UA with a contact URL (the repo URL, not an email), and stop on 4xx/429.
 - Greenhouse and Ashby boards are one unpaginated response per company, so that's one request per company per run.
