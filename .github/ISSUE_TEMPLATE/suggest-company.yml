@@ -1,0 +1,38 @@
+name: Suggest a company / preset
+description: A company (or a whole field) that should be in a ready-made preset.
+title: "Suggest: "
+labels: ["research"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! Presets only contain companies whose jobs can be read from an official API or feed (Greenhouse, Ashby, Workable, Teamtailor, job RSS feeds). You can always add any supported company to your own `config.yaml` with a link, without waiting for a preset.
+  - type: input
+    id: company
+    attributes:
+      label: Company
+      placeholder: e.g. Acme Oy
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Link to one of its job ads or its careers page
+      placeholder: https://job-boards.greenhouse.io/acme/jobs/123
+    validations:
+      required: true
+  - type: dropdown
+    id: preset
+    attributes:
+      label: Which preset?
+      options:
+        - fi-software (Finnish software and games)
+        - A new preset (describe it below)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Anything else?
+      description: Why it fits, which kinds of roles it hires for (interns, juniors…), or the field a new preset would cover.
