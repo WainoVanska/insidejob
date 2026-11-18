@@ -10,13 +10,14 @@ import logging
 import os
 import re
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from insidejob.config import ConfigError, load_config
 from insidejob.format import plain
 from insidejob.notify.discord import DiscordNotifier
 from insidejob.pipeline import RunResult, make_client, run
+from insidejob.rank import RankConfig, RankedJob, rank_jobs
 from insidejob.state import State, StateError
 
 log = logging.getLogger("insidejob")
@@ -72,12 +73,13 @@ def _run(args: argparse.Namespace) -> int:
         result = run(config, state, client, today=today)
 
         if args.dry_run:
-            _print_dry_run(result)
+            _print_dry_run(result, config.rank, today)
         else:
-            _print_new(result)
-            if result.new_jobs:
+            new = rank_jobs(result.new_jobs, config.rank, today)
+            _print_new(new)
+            if new:
                 try:
-                    DiscordNotifier(webhook, client).send(result.new_jobs)
+                    DiscordNotifier(webhook, client).send(new)
                 except Exception as exc:
                     # Don't save: the same jobs are still "new" next run and get retried.
                     log.error("sending the alert failed, state not saved: %s", _redact(exc))
@@ -90,30 +92,27 @@ def _run(args: argparse.Namespace) -> int:
     return 0
 
 
-def _print_new(result: RunResult) -> None:
-    jobs = result.new_jobs
-    print(f"{len(jobs)} new job(s)")
-    for job in jobs:
-        print(plain(job))
+def _print_new(items: list[RankedJob]) -> None:
+    print(f"{len(items)} new job(s)")
+    for item in items:
+        print(plain(item.job, item.rank))
 
 
-def _print_dry_run(result: RunResult) -> None:
-    """Show every matching job, so filters can be checked even on a first run."""
-    for source in result.sources:
-        if not source.matched:
-            continue
-        print(f"\n== {source.source.company} ({source.source.key})")
-        new_ids = {job.id for job in source.new}
-        for job in source.matched:
-            if source.seeded:
-                tag = "seed"
-            elif job.id in new_ids:
-                tag = "NEW "
-            else:
-                tag = "seen"
-            print(f"[{tag}] {plain(job)}")
-    matched = sum(len(s.matched) for s in result.sources)
-    print(f"\n{matched} matching, {len(result.new_jobs)} new. Dry run: state not saved.")
+def _print_dry_run(result: RunResult, rank_config: RankConfig, today: date) -> None:
+    """Show every matching job, ranked, so filters and weights can be checked on a first run."""
+    seeded = {s.source.key for s in result.sources if s.seeded}
+    new_ids = {job.id for job in result.new_jobs}
+    matched = [job for s in result.sources for job in s.matched]
+    for item in rank_jobs(matched, rank_config, today):
+        job = item.job
+        if job.source in seeded:
+            tag = "seed"
+        elif job.id in new_ids:
+            tag = "NEW "
+        else:
+            tag = "seen"
+        print(f"\n[{tag}] {plain(job, item.rank)}")
+    print(f"\n{len(matched)} matching, {len(new_ids)} new. Dry run: state not saved.")
 
 
 def load_dotenv(path: Path) -> None:

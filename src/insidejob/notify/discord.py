@@ -16,8 +16,9 @@ from collections.abc import Callable
 
 import httpx
 
-from insidejob.format import detail_parts
+from insidejob.format import detail_parts, reason_line
 from insidejob.models import Job
+from insidejob.rank import Rank, RankedJob, stars_text
 
 MESSAGE_LIMIT = 2000
 # A single "~" is harmless (and is our "inferred" marker); "~~" would strike through.
@@ -29,19 +30,26 @@ def escape(text: str) -> str:
     return _MARKDOWN.sub(lambda m: "\\~\\~" if m.group(1) == "~~" else "\\" + m.group(1), text)
 
 
-def format_job(job: Job) -> str:
+def format_job(job: Job, rank: Rank | None = None) -> str:
     details = " · ".join([*(escape(p) for p in detail_parts(job)), f"<{job.url}>"])
-    return f"**{escape(job.company)}** – {escape(job.title)}\n{details}"
+    head = f"{stars_text(rank.stars)} " if rank else ""
+    text = f"{head}**{escape(job.company)}** – {escape(job.title)}\n{details}"
+    if rank and rank.reasons:
+        text += f"\n{escape(reason_line(rank))}"
+    return text
 
 
-def build_messages(jobs: list[Job], limit: int = MESSAGE_LIMIT) -> list[str]:
-    """Pack job blocks into messages of at most `limit` characters, never splitting a job."""
-    header = f"**{len(jobs)} new job{'s' if len(jobs) != 1 else ''}**"
+def build_messages(items: list[RankedJob], limit: int = MESSAGE_LIMIT) -> list[str]:
+    """Pack job blocks into messages of at most `limit` characters, never splitting a job.
+
+    `items` are already in the order to show (best first).
+    """
+    header = f"**{len(items)} new job{'s' if len(items) != 1 else ''}**"
     max_block = limit - len(header) - 2  # any single job fits with the header
     messages: list[str] = []
     current = header
-    for job in jobs:
-        block = format_job(job)
+    for item in items:
+        block = format_job(item.job, item.rank)
         if len(block) > max_block:  # pathological title: cut it rather than fail the run
             block = block[: max_block - 1] + "…"
         candidate = f"{current}\n\n{block}" if current else block
@@ -69,8 +77,8 @@ class DiscordNotifier:
         self.pause = pause
         self.sleep = sleep
 
-    def send(self, jobs: list[Job]) -> None:
-        for i, message in enumerate(build_messages(jobs)):
+    def send(self, items: list[RankedJob]) -> None:
+        for i, message in enumerate(build_messages(items)):
             if i:
                 self.sleep(self.pause)
             self._post(message)
