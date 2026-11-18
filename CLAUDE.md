@@ -3,9 +3,10 @@
 Watches company career pages through official ATS APIs and RSS feeds, and alerts on new internship, trainee and junior roles (Finland first). Portfolio-quality repo: private until PR 6 works, then public.
 
 ## Working agreement
-- Wäinö writes the code. Claude gives guidance, hints, small API/pattern examples and reviews. No full implementations. Short config, JSON or command snippets are fine.
-- Claude does research, endpoint testing and planning, and asks before big architectural decisions (use the grilling skill for new phases).
-- Each phase is a feature branch and a PR into `main`, merged by Wäinö. Claude commits only docs or this file, and only when asked.
+- Since 2026-11-18 (PR 2 onwards), Claude implements the issues: code, tests, commits and PRs. PR descriptions explain the reasoning so Wäinö can review and defend every line.
+- Wäinö makes the decisions, reviews and merges every PR, and does the account-bound steps (Discord webhook, GitHub Secrets, making the repo public).
+- Claude does research, endpoint testing and planning, and asks before big architectural decisions or anything that changes the agreed design (use the grilling skill for new phases).
+- Each issue is a feature branch and a PR into `main` with `Closes #N`.
 - Keep this file updated with decisions, sources and status.
 
 ## Hard rules

@@ -1,0 +1,159 @@
+{
+  "jobs": [
+    {
+      "absolute_url": "https://www.relexsolutions.com/careers/jobs/?gh_jid=8014266003",
+      "internal_job_id": 5893951003,
+      "location": {
+        "name": "Helsinki, Finland"
+      },
+      "metadata": null,
+      "id": 8014266003,
+      "updated_at": "2026-11-11T07:14:11-05:00",
+      "requisition_id": "3247",
+      "title": "Internal Communications & Employer Branding Trainee ",
+      "company_name": "RELEX Solutions",
+      "first_published": "2026-10-06T04:38:54-04:00",
+      "language": "en",
+      "application_deadline": null,
+      "content": "&lt;div class=&quot;content-intro&quot;&gt;&lt;p&gt;&lt;img src=&quot;https://www.relexsolutions.com/wp-content/uploads/2024/01/relex-greenhouse-banner-top.png&quot; alt=&quot;&quot; width=&quot;1280&quot; style=&quot;max-width: 100%;&quot;&gt;&lt;/p&gt;&lt;p&gt;Our Internal Communications and Employer Branding team is looking for a trainee to join us for a 3-month traineeship. You&#x27;ll learn both disciplines hands-on, take ownership of well-defined day-to-day tasks, and contribute to small and medium-sized global projects.&lt;/p&gt;&lt;/div&gt;",
+      "departments": [
+        {
+          "id": 4039738003,
+          "name": "People",
+          "child_ids": [],
+          "parent_id": 4000080003
+        }
+      ],
+      "offices": [
+        {
+          "id": 4176538003,
+          "name": "Finland",
+          "location": null,
+          "child_ids": [
+            4000018003
+          ],
+          "parent_id": 4039572003
+        },
+        {
+          "id": 4000018003,
+          "name": "Helsinki, Finland",
+          "location": "Helsinki, Uusimaa, Finland",
+          "child_ids": [],
+          "parent_id": 4176538003
+        }
+      ]
+    },
+    {
+      "absolute_url": "https://www.relexsolutions.com/careers/jobs/?gh_jid=7825579003",
+      "internal_job_id": 5804766003,
+      "location": {
+        "name": "Helsinki, Finland; Stockholm, Sweden"
+      },
+      "metadata": null,
+      "id": 7825579003,
+      "updated_at": "2026-11-11T07:14:11-05:00",
+      "requisition_id": "3165",
+      "title": "Senior AI Software Engineer",
+      "company_name": "RELEX Solutions",
+      "first_published": "2026-08-25T07:59:14-04:00",
+      "language": "en",
+      "application_deadline": null,
+      "content": "&lt;div class=&quot;content-intro&quot;&gt;&lt;p&gt;&lt;img src=&quot;https://www.relexsolutions.com/wp-content/uploads/2024/01/relex-greenhouse-banner-top.png&quot; alt=&quot;&quot; width=&quot;1280&quot; style=&quot;max-width: 100%;&quot;&gt;&lt;/p&gt;&lt;p&gt;We&#x27;re bold thinkers and kind teammates, growing fast but staying grounded. Our Nordic roots and global outlook shape a culture of friendliness, creativity, and collaboration, all powered by openness and shared wins. We care deeply about doing the right thing and doing it together. We aim to improve the flow of goods, time, and energy, and we know we can&#x27;t shape the future by clinging to the past. So, we are committed to being at the forefront of the AI revolution and leading our customers into this new world. We keep evolving, together.&lt;/p&gt;&lt;/div&gt;",
+      "departments": [
+        {
+          "id": 4177751003,
+          "name": "R&D Operations",
+          "child_ids": [],
+          "parent_id": 4000086003
+        }
+      ],
+      "offices": [
+        {
+          "id": 4000018003,
+          "name": "Helsinki, Finland",
+          "location": "Helsinki, Uusimaa, Finland",
+          "child_ids": [],
+          "parent_id": 4176538003
+        },
+        {
+          "id": 4000021003,
+          "name": "Stockholm, Sweden",
+          "location": "Stockholm, Stockholms län, Sweden",
+          "child_ids": [],
+          "parent_id": 4039573003
+        }
+      ]
+    },
+    {
+      "absolute_url": "https://www.relexsolutions.com/careers/jobs/?gh_jid=8047086003",
+      "internal_job_id": 5908907003,
+      "location": {
+        "name": "Lisbon, Portugal; London, United Kingdom"
+      },
+      "metadata": null,
+      "id": 8047086003,
+      "updated_at": "2026-11-11T07:14:11-05:00",
+      "requisition_id": "3268",
+      "title": "ABM Operations Manager, AI & Automation ",
+      "company_name": "RELEX Solutions",
+      "first_published": "2026-10-29T08:08:33-04:00",
+      "language": "en",
+      "application_deadline": null,
+      "content": "&lt;div class=&quot;content-intro&quot;&gt;&lt;p&gt;&lt;img src=&quot;https://www.relexsolutions.com/wp-content/uploads/2024/01/relex-greenhouse-banner-top.png&quot; alt=&quot;&quot; width=&quot;1280&quot; style=&quot;max-width: 100%;&quot;&gt;&lt;/p&gt;&lt;p&gt;&lt;span data-contrast=&quot;none&quot;&gt;Our ABM team runs highly targeted programs for the accounts that matter most to RELEX. We want those programs to be even more personalized, more interactive, and faster to launch across channels, without adding manual effort for every new account.&lt;/span&gt;&lt;span data-ccp-props=&quot;{&amp;quot;201341983&amp;quot;:0,&amp;quot;335559739&amp;quot;:120,&amp;quot;335559740&amp;quot;:276}&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/p&gt;&lt;/div&gt;",
+      "departments": [
+        {
+          "id": 4177719003,
+          "name": "Demand Generation & Marketing Operations",
+          "child_ids": [],
+          "parent_id": 4000082003
+        }
+      ],
+      "offices": [
+        {
+          "id": 4000024003,
+          "name": "London, United Kingdom",
+          "location": "London, England, United Kingdom",
+          "child_ids": [],
+          "parent_id": 4039128003
+        }
+      ]
+    },
+    {
+      "absolute_url": "https://www.relexsolutions.com/careers/jobs/?gh_jid=8034265003",
+      "internal_job_id": 5903456003,
+      "location": {
+        "name": "Bangkok, Thailand"
+      },
+      "metadata": null,
+      "id": 8034265003,
+      "updated_at": "2026-11-11T07:14:11-05:00",
+      "requisition_id": "3254",
+      "title": "Account Executive, Manufacturing (SEA)",
+      "company_name": "RELEX Solutions",
+      "first_published": "2026-10-15T06:13:51-04:00",
+      "language": "en",
+      "application_deadline": "2027-01-15T16:45:00-05:00",
+      "content": "&lt;div class=&quot;content-intro&quot;&gt;&lt;p&gt;&lt;img src=&quot;https://www.relexsolutions.com/wp-content/uploads/2024/01/relex-greenhouse-banner-top.png&quot; alt=&quot;&quot; width=&quot;1280&quot; style=&quot;max-width: 100%;&quot;&gt;&lt;/p&gt;&lt;p&gt;&lt;strong&gt;About the team&lt;/strong&gt;&lt;br&gt;Our Sales team believes in RELEX’s potential and impact, and is driven by the growth in our funding, our 100% success rate on implementation and the fact that we are 100% referenceable. In return, we reward sales with different commission levels, genuine flexibility and an international workspace.&amp;nbsp;Join us as an &lt;strong&gt;Account Executive, Manufacturing, Thailand, based in Bangkok,&lt;/strong&gt; and help retailers and manufacturers fight food waste while growing a territory of your own.&lt;/p&gt;&lt;/div&gt;",
+      "departments": [
+        {
+          "id": 4177741003,
+          "name": "Sales APAC",
+          "child_ids": [],
+          "parent_id": 4000085003
+        }
+      ],
+      "offices": [
+        {
+          "id": 4062329003,
+          "name": "Bangkok, Thailand",
+          "location": "Bangkok, Bangkok, Thailand",
+          "child_ids": [],
+          "parent_id": 4176636003
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "total": 4
+  }
+}
