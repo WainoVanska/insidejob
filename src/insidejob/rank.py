@@ -8,9 +8,12 @@ All of it can be tuned in `config.yaml` under `rank:`; `DEFAULT_RANK` is used ot
 
     title      intern/trainee/summer > junior > graduate
     location   capital region > rest of Finland > remote/EU (unknown location gets its own value)
-    interests  best tier found; half points if it's only in the description, not the title
+    interests  best tier found; half points if it's only in the description, not the title.
+               The AI tier counts from the title only: nearly every description repeats
+               "AI" as company boilerplate, so it said nothing about the job itself.
     start      e.g. "summer 2027"
     deadline   closer deadline = more points
+    experience minus points if the text asks for 2+ years of experience
 """
 
 import re
@@ -26,11 +29,15 @@ def _rx(pattern: str) -> re.Pattern[str]:
 
 @dataclass(frozen=True)
 class Rule:
-    """`points` if `match` is found. `label` names the rule in the reason line."""
+    """`points` if `match` is found. `label` names the rule in the reason line.
+
+    `title_only` (interests): ignore the description for this rule.
+    """
 
     points: float
     match: re.Pattern[str]
     label: str = ""
+    title_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -49,6 +56,9 @@ class RankConfig:
     deadline: tuple[DeadlineRule, ...]
     three_stars: float = 9
     two_stars: float = 6
+    # A job asking for this many years of experience or more gets `experience_points`.
+    experience_years: int = 2
+    experience_points: float = -2
 
 
 @dataclass(frozen=True)
@@ -108,6 +118,7 @@ DEFAULT_RANK = RankConfig(
                 r"\b(llms?|agents?|agentic|ai|genai|generative|automation|mcp|prompt\w*|ai tools)\b"
             ),
             "AI",
+            title_only=True,
         ),
         Rule(
             2,
@@ -129,6 +140,18 @@ DEFAULT_RANK = RankConfig(
 )
 
 MAX_KEYWORDS = 3
+
+# "3+ years of experience", "2-4 years of relevant work experience", "5 years' experience",
+# Finnish "3 vuoden kokemus" / "2-3 vuotta työkokemusta". Group 1 = the (lower) number.
+_EXPERIENCE = (
+    _rx(
+        r"\b(\d{1,2})\s*(?:\+|(?:-|–|to)\s*\d{1,2})?\s*\+?\s*years?(?:'s?|’s?)?"
+        r"\s+(?:of\s+)?(?:[\w-]+\s+){0,4}?(?:work\s+)?experience"
+    ),
+    _rx(
+        r"\b(\d{1,2})\s*(?:(?:-|–)\s*\d{1,2}\s*)?vuo(?:den|tta)\b(?:\s+[\wäö-]+){0,3}?\s+\w*kokemu"
+    ),
+)
 
 
 def score(job: Job, config: RankConfig, today: date) -> Rank:
@@ -166,6 +189,10 @@ def score(job: Job, config: RankConfig, today: date) -> Rank:
             if 0 <= days <= deadline.within_days:
                 add("closes today" if days == 0 else f"closes in {days} d", deadline.points)
                 break
+
+    years = years_of_experience(f"{job.title}\n{job.description}")
+    if config.experience_points and years >= config.experience_years:
+        add(f"asks {years}+ yrs", config.experience_points)
 
     return Rank(
         points,
@@ -219,12 +246,17 @@ def _first(rules: tuple[Rule, ...], text: str) -> Rule | None:
     return next((rule for rule in rules if rule.match.search(text)), None)
 
 
+def years_of_experience(text: str) -> int:
+    """The most years of experience the text asks for (lower bound of a range); 0 if none."""
+    return max((int(m.group(1)) for rx in _EXPERIENCE for m in rx.finditer(text)), default=0)
+
+
 def _best_interest(job: Job, rules: tuple[Rule, ...]) -> tuple[float, list[str]]:
     """Points of the best tier (full in the title, half in the description) and its keywords."""
     best_points, best_keywords = 0.0, []
     for rule in rules:
         in_title = _keywords(rule.match, job.title)
-        in_body = _keywords(rule.match, job.description)
+        in_body = [] if rule.title_only else _keywords(rule.match, job.description)
         if not in_title and not in_body:
             continue
         points = rule.points if in_title else rule.points / 2
