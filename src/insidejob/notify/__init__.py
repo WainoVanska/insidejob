@@ -2,10 +2,10 @@
 
 from typing import Protocol
 
-from insidejob.models import Job
+from insidejob.rank import RankedJob
 
 
 class Notifier(Protocol):
-    def send(self, jobs: list[Job]) -> None:
-        """Deliver `jobs` (non-empty). Raise on failure so the run doesn't save state."""
+    def send(self, items: list[RankedJob]) -> None:
+        """Deliver `items` (non-empty, best first). Raise on failure so state isn't saved."""
         ...

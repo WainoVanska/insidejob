@@ -4,7 +4,7 @@
 
 filters:
   # The job title must match. \b keeps "intern" from matching "Internal"/"International".
-  title: '\b(interns?|internships?|trainees?|traineeship|summer|thesis|graduates?|junior|entry[- ]level|working student|apprentice(ship)?)\b|kesä|harjoittel|opinnäyte|diplomityö'
+  title: '\b(interns?|internships?|trainees?|traineeship|summer|thesis|launchpad|graduates?|junior|entry[- ]level|working student|apprentice(ship)?)\b|kesä|harjoittel|opinnäyte|diplomityö'
   # ...and must not match. Applied to the title only.
   exclude: '\b(senior|sr|lead|principal|staff|director|manager|head of|vp|vice president|chief)\b'
   # Location must match. Jobs with an empty location pass.

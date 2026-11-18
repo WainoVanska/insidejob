@@ -67,7 +67,10 @@ TWO_JOBS = greenhouse_board((1, "Summer Trainee", "Helsinki"), (2, "Data Trainee
 def test_dry_run_prints_matches_and_saves_nothing(files, fake, capsys):
     config, state = files
     assert run_cli(config, state, "--dry-run") == 0
-    assert "[seed] Acme – Summer Trainee" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "[seed] ★" in out
+    assert "Acme – Summer Trainee" in out
+    assert "↳ intern" in out
     assert not state.exists()
     assert fake["posts"] == []
 

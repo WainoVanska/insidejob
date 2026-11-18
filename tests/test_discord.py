@@ -11,9 +11,15 @@ from insidejob.notify.discord import (
     escape,
     format_job,
 )
+from insidejob.rank import Rank, RankedJob
 from tests.helpers import make_job
 
 WEBHOOK = "https://discord.test/api/webhooks/1/token"
+
+
+def ranked(*jobs, stars: int = 1, reasons: tuple[str, ...] = ()) -> list[RankedJob]:
+    """Wrap jobs as already-ranked items (ranking itself is tested elsewhere)."""
+    return [RankedJob(job, Rank(0, stars, reasons)) for job in jobs]
 
 
 def test_format_matches_agreed_layout():
@@ -46,18 +52,18 @@ def test_markdown_in_titles_is_escaped():
 
 
 def test_single_message_has_header():
-    (message,) = build_messages([make_job("1"), make_job("2")])
-    assert message.startswith("**2 new jobs**\n\n**Acme**")
+    (message,) = build_messages(ranked(make_job("1"), make_job("2")))
+    assert message.startswith("**2 new jobs**\n\n★ **Acme**")
     assert message.count("<https://example.com/") == 2
 
 
 def test_header_singular():
-    assert build_messages([make_job()])[0].startswith("**1 new job**\n\n")
+    assert build_messages(ranked(make_job()))[0].startswith("**1 new job**\n\n")
 
 
 def test_splits_at_limit_without_breaking_jobs():
     jobs = [make_job(str(i), title="Trainee " + "x" * 150) for i in range(40)]
-    messages = build_messages(jobs)
+    messages = build_messages(ranked(*jobs))
     assert len(messages) > 1
     assert all(len(m) <= MESSAGE_LIMIT for m in messages)
     assert sum(m.count("<https://") for m in messages) == 40
@@ -66,9 +72,9 @@ def test_splits_at_limit_without_breaking_jobs():
 
 
 def test_oversized_job_is_truncated():
-    (message,) = build_messages([make_job(title="x" * 3000)])
+    (message,) = build_messages(ranked(make_job(title="x" * 3000)))
     assert len(message) <= MESSAGE_LIMIT
-    assert message.startswith("**1 new job**\n\n**Acme**")
+    assert message.startswith("**1 new job**\n\n★ **Acme**")
     assert message.endswith("…")
 
 
@@ -88,7 +94,7 @@ def recording_client(statuses: list[int]):
 
 def test_send_posts_with_mentions_disabled():
     client, posted = recording_client([204])
-    DiscordNotifier(WEBHOOK, client, sleep=lambda _: None).send([make_job()])
+    DiscordNotifier(WEBHOOK, client, sleep=lambda _: None).send(ranked(make_job()))
     (request,) = posted
     assert str(request.url) == WEBHOOK
     body = request.read().decode()
@@ -99,14 +105,14 @@ def test_send_pauses_between_messages():
     client, posted = recording_client([])
     pauses = []
     jobs = [make_job(str(i), title="Trainee " + "x" * 150) for i in range(40)]
-    DiscordNotifier(WEBHOOK, client, pause=1.0, sleep=pauses.append).send(jobs)
+    DiscordNotifier(WEBHOOK, client, pause=1.0, sleep=pauses.append).send(ranked(*jobs))
     assert len(pauses) == len(posted) - 1
 
 
 def test_rate_limit_is_retried_once():
     client, posted = recording_client([429, 204])
     waits = []
-    DiscordNotifier(WEBHOOK, client, sleep=waits.append).send([make_job()])
+    DiscordNotifier(WEBHOOK, client, sleep=waits.append).send(ranked(make_job()))
     assert len(posted) == 2
     assert waits == [0.5]
 
@@ -114,4 +120,17 @@ def test_rate_limit_is_retried_once():
 def test_failure_raises():
     client, _ = recording_client([500])
     with pytest.raises(httpx.HTTPStatusError):
-        DiscordNotifier(WEBHOOK, client, sleep=lambda _: None).send([make_job()])
+        DiscordNotifier(WEBHOOK, client, sleep=lambda _: None).send(ranked(make_job()))
+
+
+def test_stars_and_reason_line():
+    job = make_job(company="ICEYE", title="Engineering Intern", location="Espoo", url="https://x/1")
+    text = format_job(job, Rank(11, 3, ("intern", "Espoo", "C++, engine")))
+    assert text == (
+        "★★★ **ICEYE** – Engineering Intern\nEspoo · <https://x/1>\n↳ intern · Espoo · C++, engine"
+    )
+
+
+def test_messages_keep_the_given_order():
+    (message,) = build_messages(ranked(make_job("1", title="Best"), make_job("2", title="Second")))
+    assert message.index("Best") < message.index("Second")

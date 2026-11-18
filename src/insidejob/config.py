@@ -14,6 +14,14 @@ Shape:
           location: "..."
         options:                  # optional: adapter-specific settings (see each adapter's OPTIONS)
           facet: Finland
+    rank:                         # optional: how new jobs are ordered (defaults: rank.DEFAULT_RANK)
+      title: [{points: 3, match: "intern|trainee", label: intern}, ...]
+      location: [...]             # same rule shape; first match wins
+      interests: [...]            # best tier wins; half points if only in the description
+      start: [...]
+      unknown_location: 1
+      deadline: [{within_days: 14, points: 2}, ...]
+      stars: {three: 10, two: 6}
 
 All regexes are case-insensitive. Problems raise `ConfigError` with a message that
 points at the offending entry, so a bad config fails fast instead of silently matching
@@ -21,15 +29,18 @@ nothing.
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from insidejob.adapters import ADAPTERS
+from insidejob.rank import DEFAULT_RANK, DeadlineRule, RankConfig, Rule
 
 FILTER_KEYS = ("title", "exclude", "location")
+RANK_RULE_KEYS = ("title", "location", "interests", "start")
+RANK_KEYS = (*RANK_RULE_KEYS, "unknown_location", "deadline", "stars")
 
 
 class ConfigError(ValueError):
@@ -60,6 +71,7 @@ class Source:
 @dataclass(frozen=True)
 class Config:
     sources: list[Source]
+    rank: RankConfig = DEFAULT_RANK
 
 
 def load_config(path: Path) -> Config:
@@ -95,7 +107,71 @@ def parse_config(data: Any) -> Config:
             raise ConfigError(f"sources[{i}]: duplicate source {source.key}")
         seen.add(source.key)
         sources.append(source)
-    return Config(sources=sources)
+    return Config(sources=sources, rank=_rank(data.get("rank")))
+
+
+def _rank(value: Any) -> RankConfig:
+    """`rank:` is optional; each key given replaces that part of DEFAULT_RANK."""
+    raw = _mapping(value, "rank")
+    unknown = set(raw) - set(RANK_KEYS)
+    if unknown:
+        raise ConfigError(
+            f"rank: unknown key(s) {sorted(unknown)} (allowed: {', '.join(RANK_KEYS)})"
+        )
+
+    parts: dict[str, Any] = {}
+    for key in RANK_RULE_KEYS:
+        if key in raw:
+            parts[key] = _rules(raw[key], f"rank.{key}")
+    if "unknown_location" in raw:
+        parts["unknown_location"] = _number(raw["unknown_location"], "rank.unknown_location")
+    if "deadline" in raw:
+        parts["deadline"] = _deadlines(raw["deadline"], "rank.deadline")
+    if "stars" in raw:
+        stars = _mapping(raw["stars"], "rank.stars")
+        if set(stars) - {"three", "two"}:
+            raise ConfigError("rank.stars: only `three` and `two` thresholds are allowed")
+        if "three" in stars:
+            parts["three_stars"] = _number(stars["three"], "rank.stars.three")
+        if "two" in stars:
+            parts["two_stars"] = _number(stars["two"], "rank.stars.two")
+
+    return replace(DEFAULT_RANK, **parts)
+
+
+def _rules(value: Any, where: str) -> tuple[Rule, ...]:
+    if not isinstance(value, list):
+        raise ConfigError(f"{where} must be a list of {{points, match, label}}")
+    rules = []
+    for i, item in enumerate(value):
+        item = _mapping(item, f"{where}[{i}]")
+        if set(item) - {"points", "match", "label"}:
+            raise ConfigError(f"{where}[{i}]: only `points`, `match` and `label` are allowed")
+        pattern = _regex(item.get("match"), f"{where}[{i}].match", required=True)
+        label = item.get("label", "")
+        if not isinstance(label, str):
+            raise ConfigError(f"{where}[{i}].label must be a string")
+        rules.append(Rule(_number(item.get("points"), f"{where}[{i}].points"), pattern, label))
+    return tuple(rules)
+
+
+def _deadlines(value: Any, where: str) -> tuple[DeadlineRule, ...]:
+    if not isinstance(value, list):
+        raise ConfigError(f"{where} must be a list of {{within_days, points}}")
+    rules = []
+    for i, item in enumerate(value):
+        item = _mapping(item, f"{where}[{i}]")
+        days = item.get("within_days")
+        if not isinstance(days, int) or isinstance(days, bool) or days < 0:
+            raise ConfigError(f"{where}[{i}].within_days must be a whole number of days")
+        rules.append(DeadlineRule(days, _number(item.get("points"), f"{where}[{i}].points")))
+    return tuple(rules)
+
+
+def _number(value: Any, where: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ConfigError(f"{where} must be a number")
+    return float(value)
 
 
 def _source(raw: Any, where: str, global_raw: dict[str, Any]) -> Source:

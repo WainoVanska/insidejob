@@ -3,6 +3,7 @@
 from datetime import date
 
 from insidejob.models import Job
+from insidejob.rank import Rank, stars_text
 
 
 def detail_parts(job: Job) -> list[str]:
@@ -31,7 +32,16 @@ def fi_date(day: date) -> str:
     return f"{day.day}.{day.month}.{day.year}"
 
 
-def plain(job: Job) -> str:
-    """Two-line plain-text form for the terminal."""
+def reason_line(rank: Rank) -> str:
+    """Why a job ranked where it did: `↳ intern · Espoo · C++, engine`."""
+    return "↳ " + " · ".join(rank.reasons) if rank.reasons else ""
+
+
+def plain(job: Job, rank: Rank | None = None) -> str:
+    """Plain-text form for the terminal: stars + title, details, and the reasons."""
     details = " · ".join([*detail_parts(job), job.url])
-    return f"{job.company} – {job.title}\n    {details}"
+    head = f"{stars_text(rank.stars)} " if rank else ""
+    text = f"{head}{job.company} – {job.title}\n    {details}"
+    if rank and rank.reasons:
+        text += f"\n    {reason_line(rank)}"
+    return text
