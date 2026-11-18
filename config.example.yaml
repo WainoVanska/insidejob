@@ -1,0 +1,29 @@
+# Example insidejob config. Copy to config.yaml and edit.
+#
+# filters: global defaults (regexes, case-insensitive)
+#   title     required  the job title must match
+#   exclude   optional  the job title must NOT match
+#   location  optional  the location must match (jobs with an empty location pass)
+#
+# sources: one entry per job board
+#   company   name shown in alerts
+#   type      adapter: greenhouse (more coming: rss, ashby)
+#   board     the board's id in that system, e.g. boards.greenhouse.io/<board>
+#   filters   optional; each key given here REPLACES the global one for this source
+
+filters:
+  title: '\b(interns?|internships?|trainees?|summer|graduates?|junior)\b'
+  exclude: '\b(senior|lead|principal|staff|director|manager|head of)\b'
+  location: 'helsinki|espoo|finland|\b(eu|europe|emea)\b'
+
+sources:
+  - company: RELEX Solutions
+    type: greenhouse
+    board: relex
+
+  - company: Wolt
+    type: greenhouse
+    board: wolt
+    filters:
+      # Wolt posts many city-specific roles; only watch Helsinki here.
+      location: 'helsinki'

@@ -72,4 +72,16 @@ See `docs/sources.md` (verified 2026-11-18). Greenhouse 9, Teamtailor RSS 5, Wor
 ## Status
 - [x] Phase 1: source research → `docs/sources.md`
 - [x] Design agreed (above)
-- [ ] PR 1 skeleton (#3) ← next
+- [x] PR 1 skeleton (#3), merged as #21
+- [ ] v1 PRs, stacked, merge in order: #22 Greenhouse (#4) → config + filters (#5) → state/enrich/pipeline (#6) → Discord (#7) → scheduled Action (#8)
+- [x] Orphan `state` branch created on origin (README only; first run seeds silently)
+- [ ] Wäinö: Discord webhook → repo secret `DISCORD_WEBHOOK_URL`, run the workflow manually once, then make the repo public
+
+## Implementation notes (v1)
+- The state diff runs on **all** fetched jobs, not only matches: loosening a filter never alerts on old postings. Order per source: fetch → parse → state diff → filter → enrich.
+- State stores dates, not timestamps, so `seen.json` changes at most once a day per job and the Action doesn't commit every hour.
+- Prune only boards fetched OK this run; empty boards are kept (otherwise a board with 0 jobs would re-seed silently later).
+- Alert before saving state: if Discord fails, state isn't saved and the jobs are retried next run.
+- Exit codes: 0 ok, 1 a source or the alert failed, 2 bad config/state or no webhook.
+- `--dry-run` prints every matching job tagged seed/NEW/seen, so filters can be checked on a fresh state.
+- Jobs with an empty location pass the location filter.

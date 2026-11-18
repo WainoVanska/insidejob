@@ -1,0 +1,23 @@
+# insidejob config: which boards to watch and which jobs to alert on.
+# Sources and how they were verified: docs/sources.md.
+# Regexes are case-insensitive. Single quotes keep backslashes literal in YAML.
+
+filters:
+  # The job title must match. \b keeps "intern" from matching "Internal"/"International".
+  title: '\b(interns?|internships?|trainees?|traineeship|summer|thesis|graduates?|junior|entry[- ]level|working student|apprentice(ship)?)\b|kesä|harjoittel|opinnäyte|diplomityö'
+  # ...and must not match. Applied to the title only.
+  exclude: '\b(senior|sr|lead|principal|staff|director|manager|head of|vp|vice president|chief)\b'
+  # Location must match. Jobs with an empty location pass.
+  location: 'finland|suomi|helsinki|espoo|vantaa|\b(eu|europe|emea|nordics?)\b'
+
+sources:
+  # Greenhouse: https://boards-api.greenhouse.io/v1/boards/<board>/jobs
+  - { company: Smartly, type: greenhouse, board: smartlyio }
+  - { company: Wolt, type: greenhouse, board: wolt }
+  - { company: Housemarque, type: greenhouse, board: housemarque }
+  - { company: RELEX Solutions, type: greenhouse, board: relex }
+  - { company: Qt Group, type: greenhouse, board: theqtcompany }
+  - { company: Oura, type: greenhouse, board: oura }
+  - { company: Supermetrics, type: greenhouse, board: supermetricsoy }
+  - { company: Solita, type: greenhouse, board: solita }
+  - { company: Small Giant, type: greenhouse, board: sggcareers }
