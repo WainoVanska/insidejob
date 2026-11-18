@@ -4,7 +4,7 @@ from typing import Any, Protocol
 
 import httpx
 
-from insidejob.adapters import greenhouse, rss
+from insidejob.adapters import ashby, greenhouse, rss
 from insidejob.models import Job
 
 
@@ -20,4 +20,5 @@ class Adapter(Protocol):
 ADAPTERS: dict[str, Adapter] = {
     greenhouse.TYPE: greenhouse,
     rss.TYPE: rss,
+    ashby.TYPE: ashby,
 }
