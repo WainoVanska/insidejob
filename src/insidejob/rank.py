@@ -74,6 +74,7 @@ class Rank:
 class RankedJob:
     job: Job
     rank: Rank
+    fresh: bool = False  # shown with 🆕: new this run, or first seen recently (`top`)
 
 
 # "C++" can't use \b (it ends in non-word characters), so it gets a lookbehind instead.

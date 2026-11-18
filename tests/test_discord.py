@@ -13,6 +13,7 @@ from insidejob.notify.discord import (
     embed_size,
     escape,
     job_embed,
+    top_header,
 )
 from insidejob.rank import Rank, RankedJob
 from tests.helpers import make_job
@@ -77,13 +78,25 @@ def test_long_title_is_cut_to_discord_limit():
 
 def test_one_payload_with_header():
     (payload,) = build_payloads(ranked(make_job("1"), make_job("2")))
-    assert payload["content"] == "🔍 **2 new jobs**"
+    assert payload["content"] == "🆕 **2 new jobs**"
     assert len(payload["embeds"]) == 2
     assert payload["allowed_mentions"] == {"parse": []}
 
 
 def test_header_singular():
-    assert build_payloads(ranked(make_job()))[0]["content"] == "🔍 **1 new job**"
+    assert build_payloads(ranked(make_job()))[0]["content"] == "🆕 **1 new job**"
+
+
+def test_custom_header():
+    (payload,) = build_payloads(ranked(make_job()), top_header(1))
+    assert payload["content"] == "🏆 **Top 1 job right now**"
+
+
+def test_fresh_jobs_get_the_new_mark():
+    fresh = RankedJob(make_job("1", title="A"), Rank(5, 2), fresh=True)
+    old = RankedJob(make_job("2", title="B"), Rank(5, 2))
+    (payload,) = build_payloads([fresh, old])
+    assert [e["title"] for e in payload["embeds"]] == ["🆕 A", "B"]
 
 
 def test_splits_at_ten_embeds_and_keeps_order():

@@ -19,7 +19,7 @@ Watches company career pages through official ATS APIs and RSS feeds, and alerts
 
 **Tooling:** Python >= 3.11, uv (`uv.lock`), pytest, ruff (check + format in CI), MIT license. Runtime deps: `httpx`, `PyYAML`, and stdlib `xml.etree` for RSS (not feedparser, which drops Teamtailor's `tt:` namespace). No pydantic.
 
-**Package:** `src/insidejob/`, entry point `insidejob = "insidejob.cli:main"` (also `python -m insidejob`). CLI: `insidejob run [--dry-run] [--config PATH] [--state PATH]`. `--dry-run` fetches, filters and prints, with no alerts and no state write.
+**Package:** `src/insidejob/`, entry point `insidejob = "insidejob.cli:main"` (also `python -m insidejob`). CLI: `insidejob run [--dry-run] [--config PATH] [--state PATH]`. `--dry-run` fetches, filters and prints, with no alerts and no state write. Added 2026-11-18 (agreed with Wäinö): `insidejob top [--count N] [--dry-run]` sends the N best-matching current jobs, new or not; it reads state only to mark jobs first seen in the last 7 days with 🆕, and never saves it.
 
 **Job model:** `id` (`source:board:job_id`), company, title, location (one string, multiple locations joined with `"; "`), url, `posted_at: datetime | None`, workplace (onsite/hybrid/remote), employment (full-time/part-time/internship/fixed-term), start, deadline. The last four are optional and each records whether it was *listed* by the source or *inferred*. The description is kept in memory only, never in state.
 
@@ -36,16 +36,16 @@ Watches company career pages through official ATS APIs and RSS feeds, and alerts
 - IDs missing for 60 days are pruned.
 - A failed source is skipped and its state is left untouched. The run continues and exits non-zero at the end.
 
-**Alerts:** Discord webhook first (`DISCORD_WEBHOOK_URL` secret), behind a `Notifier` interface so Telegram can be added later. One digest per run; nothing is sent when there's nothing new. Changed 2026-11-18 at Wäinö's request: each job is a Discord **embed** (card), best match first, at most 10 embeds / ~6,000 embed characters per message, header `🔍 N new jobs` on the first. The left bar and dot show the match level (🟢 ≥ `stars.three` = 9, 🟡 ≥ `stars.two` = 6, 🔴 below), the score is out of the best possible (13 by default), and each 💡 reason shows its points so they add up to the score. Unknown fields are left out, inferred values marked with `~`, and at most 3 locations are shown, most relevant first:
+**Alerts:** Discord webhook first (`DISCORD_WEBHOOK_URL` secret), behind a `Notifier` interface so Telegram can be added later. One digest per run; nothing is sent when there's nothing new. Changed 2026-11-18 at Wäinö's request: each job is a Discord **embed** (card), best match first, at most 10 embeds / ~6,000 embed characters per message, header on the first: `🆕 N new jobs` for the hourly alert (and 🆕 before every title), or `🏆 Top N jobs right now` for `top` (🆕 only on jobs first seen in the last 7 days, never on a board seen for the first time). The left bar and dot show the match level (🟢 ≥ `stars.three` = 9, 🟡 ≥ `stars.two` = 6, 🔴 below), the score is out of the best possible (13 by default), and each 💡 reason shows its points so they add up to the score. Unknown fields are left out, inferred values marked with `~`, and at most 3 locations are shown, most relevant first:
 ```
 ┃ ICEYE                                   (author)
-┃ ICEYE Engineering Intern Lab 2027       (title, links to the job)
+┃ 🆕 ICEYE Engineering Intern Lab 2027    (title, links to the job)
 ┃ 🟢 9.5 / 13
 ┃ 📍 Espoo, Finland · 🏢 hybrid · 💼 full-time · 🗓️ ~starts May 2027 · ⏳ apply by 15.1.2027
 ┃ 💡 intern +3 · Espoo +3 · computer vision +1.5 · summer 2027 +2
 ```
 
-**Automation:** GitHub Actions cron `0 4-18 * * 1-5` (UTC, about 06–20 Finnish time, weekdays) + `workflow_dispatch`. `concurrency` group so runs never overlap. State lives on an orphan `state` branch, checked out into `state/` and committed as `github-actions[bot]` only when it changed (`permissions: contents: write`). CI runs ruff + pytest on every PR. Tests never touch the network.
+**Automation:** GitHub Actions cron `0 4-18 * * 1-5` (UTC, about 06–20 Finnish time, weekdays) + `workflow_dispatch`. `concurrency` group so runs never overlap. State lives on an orphan `state` branch, checked out into `state/` and committed as `github-actions[bot]` only when it changed (`permissions: contents: write`). CI runs ruff + pytest on every PR. Tests never touch the network. A second workflow, **Top jobs** (`top.yml`), is manual only: `workflow_dispatch` with a `count` choice (3/5/10/25), `contents: read`, reads the `state` branch and never pushes.
 
 **Logging:** stdlib `logging`, one INFO line per source (`greenhouse:relex fetched=35 matched=2 new=1`), failures at ERROR.
 
@@ -79,6 +79,7 @@ See `docs/sources.md` (verified 2026-11-18). Greenhouse 9, Teamtailor RSS 5, Wor
 - [x] v1 live (2026-11-18): #4–#8 merged via #27, Discord alerts confirmed, actions bumped (#28), README (#29)
 - [x] More adapters merged (#30–#33): RSS (#9), Ashby (#10), Workday (#12), Workable (#13)
 - [x] Workday disabled in `config.yaml`: Cloudflare 429s GitHub Actions runners. 21 active companies
+- [x] Ranking (#37), embeds + scores (#40), fairer ranking (#41), short README with screenshot (#39)
 - [ ] Wäinö: make the repo public
 - Later / needs design: Oracle (#14), Eightfold (#15), Aiven token (#16), field filters (#18), match score (#19), Gmail (#20). Telegram (#17) parked: not wanted for now.
 

@@ -90,9 +90,9 @@ def test_real_run_seeds_then_alerts(files, fake, capsys):
     assert run_cli(config, state) == 0
     assert "1 new job(s)" in capsys.readouterr().out
     (post,) = fake["posts"]
-    assert post["content"] == "🔍 **1 new job**"
+    assert post["content"] == "🆕 **1 new job**"
     (embed,) = post["embeds"]
-    assert (embed["author"]["name"], embed["title"]) == ("Acme", "Data Trainee")
+    assert (embed["author"]["name"], embed["title"]) == ("Acme", "🆕 Data Trainee")
 
 
 def test_nothing_new_sends_nothing(files, fake):
@@ -155,4 +155,66 @@ def test_bad_config_exits_2(files, fake):
 def test_missing_command_is_an_error():
     with pytest.raises(SystemExit) as exc:
         cli.main([])
+    assert exc.value.code == 2
+
+
+def run_top(config, state, *extra):
+    return cli.main(["top", "--config", str(config), "--state", str(state), *extra])
+
+
+def test_top_sends_best_jobs_and_never_writes_state(files, fake):
+    config, state = files
+    run_cli(config, state)  # seed job 1
+    before = state.read_text(encoding="utf-8")
+
+    fake["board"] = TWO_JOBS
+    assert run_top(config, state, "--count", "5") == 0
+    assert state.read_text(encoding="utf-8") == before  # job 2 not recorded
+    (post,) = fake["posts"]
+    assert post["content"] == "🏆 **Top 2 jobs right now**"
+    assert len(post["embeds"]) == 2
+
+
+def test_top_marks_recently_seen_jobs_fresh(files, fake):
+    config, state = files
+    run_cli(config, state)  # board seeded today: job 1 first seen today
+    fake["board"] = TWO_JOBS  # job 2 is brand new
+    run_top(config, state)
+    titles = [e["title"] for e in fake["posts"][0]["embeds"]]
+    assert sorted(titles) == ["🆕 Data Trainee", "🆕 Summer Trainee"]
+
+
+def test_top_marks_nothing_fresh_on_an_unknown_board(files, fake):
+    config, state = files  # no state at all: everything would look new
+    run_top(config, state)
+    (embed,) = fake["posts"][0]["embeds"]
+    assert embed["title"] == "Summer Trainee"
+
+
+def test_top_old_jobs_are_not_fresh(files, fake):
+    config, state = files
+    state.write_text(
+        json.dumps(
+            {"greenhouse:acme": {"1": {"first_seen": "2026-01-01", "last_seen": "2026-01-01"}}}
+        ),
+        encoding="utf-8",
+    )
+    run_top(config, state)
+    (embed,) = fake["posts"][0]["embeds"]
+    assert embed["title"] == "Summer Trainee"
+
+
+def test_top_count_limits_and_dry_run_sends_nothing(files, fake, capsys):
+    config, state = files
+    fake["board"] = TWO_JOBS
+    assert run_top(config, state, "--count", "1", "--dry-run") == 0
+    assert "top 1 job(s)" in capsys.readouterr().out
+    assert fake["posts"] == []
+
+
+@pytest.mark.parametrize("count", ["0", "-3", "ten"])
+def test_top_count_must_be_positive(files, count):
+    config, state = files
+    with pytest.raises(SystemExit) as exc:
+        run_top(config, state, "--count", count)
     assert exc.value.code == 2

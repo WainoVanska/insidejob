@@ -1,5 +1,8 @@
 """Command-line entry point.
 
+    insidejob run [--dry-run]        hourly: alert on new matching jobs, save state
+    insidejob top [--count N]        on demand: send the N best matching jobs right now
+
 Exit codes: 0 ok; 1 a source failed (the others still ran and state was saved) or the
 alert could not be sent (state not saved, so the jobs are retried next run); 2 bad
 config, state, usage or a missing DISCORD_WEBHOOK_URL.
@@ -10,12 +13,13 @@ import logging
 import os
 import re
 import sys
-from datetime import UTC, date, datetime
+from dataclasses import replace
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from insidejob.config import ConfigError, load_config
 from insidejob.format import plain
-from insidejob.notify.discord import DiscordNotifier
+from insidejob.notify.discord import DiscordNotifier, top_header
 from insidejob.pipeline import RunResult, make_client, run
 from insidejob.rank import RankConfig, RankedJob, rank_jobs
 from insidejob.state import State, StateError
@@ -23,6 +27,7 @@ from insidejob.state import State, StateError
 log = logging.getLogger("insidejob")
 
 WEBHOOK_ENV = "DISCORD_WEBHOOK_URL"
+FRESH_DAYS = 7  # `top` marks jobs first seen within this many days with 🆕
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -38,9 +43,28 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="print matching jobs only: no alerts, no state write",
     )
-    run_cmd.add_argument("--config", type=Path, default=Path("config.yaml"), help="config file")
-    run_cmd.add_argument("--state", type=Path, default=Path("seen.json"), help="state file")
+    top_cmd = commands.add_parser(
+        "top", help="send the best-matching current jobs (reads state, never writes it)"
+    )
+    top_cmd.add_argument(
+        "--count", type=_positive_int, default=10, help="how many jobs to send (default 10)"
+    )
+    top_cmd.add_argument("--dry-run", action="store_true", help="print only: no alert")
+
+    for cmd in (run_cmd, top_cmd):
+        cmd.add_argument("--config", type=Path, default=Path("config.yaml"), help="config file")
+        cmd.add_argument("--state", type=Path, default=Path("seen.json"), help="state file")
     return parser
+
+
+def _positive_int(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        value = 0
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be a whole number of at least 1, not {text!r}")
+    return value
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -51,6 +75,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "run":
         return _run(args)
+    if args.command == "top":
+        return _top(args)
     return 2
 
 
@@ -75,7 +101,7 @@ def _run(args: argparse.Namespace) -> int:
         if args.dry_run:
             _print_dry_run(result, config.rank, today)
         else:
-            new = rank_jobs(result.new_jobs, config.rank, today)
+            new = [replace(i, fresh=True) for i in rank_jobs(result.new_jobs, config.rank, today)]
             _print_new(new)
             if new:
                 try:
@@ -90,6 +116,63 @@ def _run(args: argparse.Namespace) -> int:
         log.error("%d source(s) failed: %s", len(result.failed), _keys(result.failed))
         return 1
     return 0
+
+
+def _top(args: argparse.Namespace) -> int:
+    """Send the best `--count` jobs matching right now, whether new or not.
+
+    State is read (to mark jobs first seen in the last FRESH_DAYS with 🆕) but never saved,
+    so this can run any time without affecting the hourly alerts.
+    """
+    try:
+        config = load_config(args.config)
+        state = State.load(args.state)
+    except (ConfigError, StateError) as exc:
+        log.error("%s", exc)
+        return 2
+
+    load_dotenv(Path(".env"))
+    webhook = os.environ.get(WEBHOOK_ENV, "").strip()
+    if not args.dry_run and not webhook:
+        log.error("%s is not set: put it in .env, or use --dry-run", WEBHOOK_ENV)
+        return 2
+
+    today = datetime.now(UTC).date()
+    with make_client() as client:
+        result = run(config, state, client, today=today)  # updates state in memory only
+        items = top_jobs(result, state, config.rank, today, args.count)
+
+        print(f"top {len(items)} job(s)")
+        for item in items:
+            print(("🆕 " if item.fresh else "") + plain(item.job, item.rank))
+        if items and not args.dry_run:
+            try:
+                DiscordNotifier(webhook, client).send(items, top_header(len(items)))
+            except Exception as exc:
+                log.error("sending the top jobs failed: %s", _redact(exc))
+                return 1
+
+    if result.failed:
+        log.error("%d source(s) failed: %s", len(result.failed), _keys(result.failed))
+        return 1
+    return 0
+
+
+def top_jobs(
+    result: RunResult, state: State, rank_config: RankConfig, today: date, count: int
+) -> list[RankedJob]:
+    """The `count` best matching jobs. Fresh = first seen within FRESH_DAYS, on a board
+    that already had history (a board seen for the first time would make everything 🆕)."""
+    known = {s.source.key for s in result.sources if not s.seeded}
+    since = today - timedelta(days=FRESH_DAYS - 1)
+    matched = [job for s in result.sources for job in s.matched]
+    best = rank_jobs(matched, rank_config, today)[:count]
+
+    def fresh(job) -> bool:
+        first = state.first_seen(job)
+        return job.source in known and first is not None and first >= since
+
+    return [replace(item, fresh=fresh(item.job)) for item in best]
 
 
 def _print_new(items: list[RankedJob]) -> None:
