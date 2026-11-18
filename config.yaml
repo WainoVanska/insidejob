@@ -34,17 +34,21 @@ sources:
   - { company: Supercell, type: ashby, board: supercell }
   - { company: Reaktor, type: ashby, board: reaktor }
 
-  # Workday: the career site URL without https://. Big companies list thousands of jobs
-  # worldwide, so `facet` narrows it server-side to one location (name as shown in the
-  # site's filters).
-  - company: NVIDIA
-    type: workday
-    board: nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite
-    options: { facet: Finland }
-  - company: KONE
-    type: workday
-    board: kone.wd3.myworkdayjobs.com/Careers
-    options: { facet: Finland }
+  # Workday: DISABLED. Workday's Cloudflare answers 429 to GitHub Actions runners on the
+  # very first request (2026-11-18), while the same request from a home connection gets
+  # 200. We don't work around bot protection, so these stay off in the hosted run.
+  # The adapter still works locally: uncomment and use `insidejob run --dry-run`.
+  # For alerts, create a job alert on the career site itself (email).
+  #
+  # The career site URL without https://. `facet` narrows to one location server-side.
+  # - company: NVIDIA
+  #   type: workday
+  #   board: nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite
+  #   options: { facet: Finland }
+  # - company: KONE
+  #   type: workday
+  #   board: kone.wd3.myworkdayjobs.com/Careers
+  #   options: { facet: Finland }
 
   # Workable: the account slug from apply.workable.com/<board>
   - { company: Varjo, type: workable, board: varjo-1 }
