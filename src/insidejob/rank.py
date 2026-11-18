@@ -1,7 +1,8 @@
 """Order new jobs best first with a simple, explainable points score.
 
 Ranking never hides anything: the filters decide what is relevant, ranking only decides
-the order and adds stars plus a short "why" line. Every signal is a list of rules, and
+the order and adds a match level (1-3) plus a "why" line where each reason shows its
+points, so the reasons add up to the score. Every signal is a list of rules, and
 the first rule that matches wins (except interests, where the best-scoring tier wins).
 All of it can be tuned in `config.yaml` under `rank:`; `DEFAULT_RANK` is used otherwise.
 
@@ -46,15 +47,17 @@ class RankConfig:
     interests: tuple[Rule, ...]
     start: tuple[Rule, ...]
     deadline: tuple[DeadlineRule, ...]
-    three_stars: float = 10
+    three_stars: float = 9
     two_stars: float = 6
 
 
 @dataclass(frozen=True)
 class Rank:
     score: float
-    stars: int
+    stars: int  # match level: 3 strong (green), 2 some (yellow), 1 weak (red)
     reasons: tuple[str, ...] = field(default=())
+    out_of: float = 0  # best score possible with this config; 0 = not known
+    places: tuple[str, ...] = ()  # the job's locations, most relevant first
 
 
 @dataclass(frozen=True)
@@ -87,7 +90,9 @@ DEFAULT_RANK = RankConfig(
         Rule(2, _rx(r"finland|suomi")),
         Rule(1, _rx(r"\bremote\b|\b(eu|europe|emea)\b")),
     ),
-    unknown_location=1,
+    # Every watched company is Finnish, so a job without a location is most likely in
+    # Finland: score it like "rest of Finland" rather than like remote.
+    unknown_location=2,
     interests=(
         Rule(
             3,
@@ -130,38 +135,73 @@ def score(job: Job, config: RankConfig, today: date) -> Rank:
     points = 0.0
     reasons: list[str] = []
 
+    def add(label: str, earned: float) -> None:
+        nonlocal points
+        points += earned
+        if label:
+            reasons.append(f"{label} {_signed(earned)}")
+
     if rule := _first(config.title, job.title):
-        points += rule.points
-        reasons.append(rule.label)
+        add(rule.label, rule.points)
 
     if job.location:
         for rule in config.location:
             if m := rule.match.search(job.location):
-                points += rule.points
-                reasons.append(rule.label or m.group(0).title())
+                add(rule.label or m.group(0).title(), rule.points)
                 break
-    else:
-        points += config.unknown_location
+    elif config.unknown_location:
+        add("no location", config.unknown_location)
 
     interest, keywords = _best_interest(job, config.interests)
-    points += interest
     if keywords:
-        reasons.append(", ".join(keywords))
+        add(", ".join(keywords), interest)
 
     start_text = f"{job.start or ''}\n{job.title}"
     if rule := _first(config.start, start_text):
-        points += rule.points
-        reasons.append(rule.label or "start")
+        add(rule.label or "start", rule.points)
 
     if job.deadline:
         days = (job.deadline - today).days
         for deadline in sorted(config.deadline, key=lambda d: d.within_days):
             if 0 <= days <= deadline.within_days:
-                points += deadline.points
-                reasons.append("closes today" if days == 0 else f"closes in {days} d")
+                add("closes today" if days == 0 else f"closes in {days} d", deadline.points)
                 break
 
-    return Rank(points, _stars(points, config), tuple(r for r in reasons if r))
+    return Rank(
+        points,
+        _stars(points, config),
+        tuple(reasons),
+        max_score(config),
+        _places_by_relevance(job.location, config.location),
+    )
+
+
+def _places_by_relevance(location: str, rules: tuple[Rule, ...]) -> tuple[str, ...]:
+    """Split "A; B; C" and order by the first location rule each place matches.
+
+    Places no rule matches go last; ties keep the source's order.
+    """
+    places = [p.strip() for p in location.split(";") if p.strip()]
+
+    def rank(place: str) -> int:
+        return next((i for i, r in enumerate(rules) if r.match.search(place)), len(rules))
+
+    return tuple(sorted(places, key=rank))
+
+
+def max_score(config: RankConfig) -> float:
+    """The best score any job could get: the top rule of every signal added up."""
+
+    def top(values) -> float:
+        return max(values, default=0)
+
+    return (
+        top(r.points for r in config.title)
+        + top([config.unknown_location, *(r.points for r in config.location)])
+        + top(r.points for r in config.interests)
+        + top(r.points for r in config.start)
+        + top(d.points for d in config.deadline)
+    )
 
 
 def rank_jobs(jobs: list[Job], config: RankConfig, today: date) -> list[RankedJob]:
@@ -170,8 +210,9 @@ def rank_jobs(jobs: list[Job], config: RankConfig, today: date) -> list[RankedJo
     return sorted(ranked, key=_sort_key)
 
 
-def stars_text(stars: int) -> str:
-    return "★" * stars
+def _signed(points: float) -> str:
+    """+3, +1.5: `g` drops a trailing .0."""
+    return f"{points:+g}"
 
 
 def _first(rules: tuple[Rule, ...], text: str) -> Rule | None:

@@ -68,9 +68,8 @@ def test_dry_run_prints_matches_and_saves_nothing(files, fake, capsys):
     config, state = files
     assert run_cli(config, state, "--dry-run") == 0
     out = capsys.readouterr().out
-    assert "[seed] ★" in out
-    assert "Acme – Summer Trainee" in out
-    assert "↳ intern" in out
+    assert "[seed] 🟡 Acme – Summer Trainee · 6 / 13" in out
+    assert "↳ intern +3 · Helsinki +3" in out
     assert not state.exists()
     assert fake["posts"] == []
 
@@ -91,7 +90,9 @@ def test_real_run_seeds_then_alerts(files, fake, capsys):
     assert run_cli(config, state) == 0
     assert "1 new job(s)" in capsys.readouterr().out
     (post,) = fake["posts"]
-    assert "**Acme** – Data Trainee" in post["content"]
+    assert post["content"] == "🔍 **1 new job**"
+    (embed,) = post["embeds"]
+    assert (embed["author"]["name"], embed["title"]) == ("Acme", "Data Trainee")
 
 
 def test_nothing_new_sends_nothing(files, fake):

@@ -19,9 +19,9 @@ Shape:
       location: [...]             # same rule shape; first match wins
       interests: [...]            # best tier wins; half points if only in the description
       start: [...]
-      unknown_location: 1
+      unknown_location: 2
       deadline: [{within_days: 14, points: 2}, ...]
-      stars: {three: 10, two: 6}
+      stars: {three: 9, two: 6}
 
 All regexes are case-insensitive. Problems raise `ConfigError` with a message that
 points at the offending entry, so a bad config fails fast instead of silently matching

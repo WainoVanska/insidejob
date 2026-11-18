@@ -1,3 +1,4 @@
+import json
 from datetime import date
 
 import httpx
@@ -5,11 +6,13 @@ import pytest
 
 from insidejob.models import Employment, Workplace
 from insidejob.notify.discord import (
-    MESSAGE_LIMIT,
+    EMBED_CHARS_PER_MESSAGE,
+    EMBEDS_PER_MESSAGE,
     DiscordNotifier,
-    build_messages,
+    build_payloads,
+    embed_size,
     escape,
-    format_job,
+    job_embed,
 )
 from insidejob.rank import Rank, RankedJob
 from tests.helpers import make_job
@@ -22,7 +25,7 @@ def ranked(*jobs, stars: int = 1, reasons: tuple[str, ...] = ()) -> list[RankedJ
     return [RankedJob(job, Rank(0, stars, reasons)) for job in jobs]
 
 
-def test_format_matches_agreed_layout():
+def test_embed_layout():
     job = make_job(
         company="RELEX",
         title="Summer Trainee, Data Science",
@@ -34,48 +37,70 @@ def test_format_matches_agreed_layout():
         inferred={"start"},
         url="https://example.com/1",
     )
-    assert format_job(job) == (
-        "**RELEX** – Summer Trainee, Data Science\n"
-        "Helsinki · hybrid · internship · ~start Jun 2027 · apply by 15.1.2027"
-        " · <https://example.com/1>"
-    )
+    rank = Rank(10.5, 3, ("intern +3", "Helsinki +3"), 13, ("Helsinki",))
+    assert job_embed(job, rank) == {
+        "author": {"name": "RELEX"},
+        "title": "Summer Trainee, Data Science",
+        "url": "https://example.com/1",
+        "color": 0x2ECC71,
+        "description": (
+            "**🟢 10.5 / 13**\n"
+            "📍 Helsinki · 🏢 hybrid · 💼 internship · 🗓️ ~starts Jun 2027 · ⏳ apply by 15.1.2027\n"
+            "💡 intern +3 · Helsinki +3"
+        ),
+    }
 
 
-def test_unknown_fields_are_left_out():
-    job = make_job(location="", url="https://example.com/1")
-    assert format_job(job).splitlines()[1] == "<https://example.com/1>"
+@pytest.mark.parametrize(("stars", "colour"), [(3, 0x2ECC71), (2, 0xF1C40F), (1, 0xE74C3C)])
+def test_bar_colour_follows_match_level(stars, colour):
+    assert job_embed(make_job(), Rank(5, stars))["color"] == colour
 
 
-def test_markdown_in_titles_is_escaped():
-    assert escape("C++ *Intern* _2027_ | ~x~") == r"C++ \*Intern\* \_2027\_ \| ~x~"
+def test_unranked_job_is_grey_without_score():
+    embed = job_embed(make_job(location=""))
+    assert embed["color"] == 0x99AAB5
+    assert "description" not in embed
+
+
+def test_markdown_is_escaped_in_the_description_only():
+    embed = job_embed(make_job(title="C++ *Intern*", location="Espoo_HQ"), Rank(5, 1))
+    assert embed["title"] == "C++ *Intern*"  # embed titles don't render markdown
+    assert "Espoo\\_HQ" in embed["description"]
     assert escape("~~gone~~") == r"\~\~gone\~\~"
 
 
-def test_single_message_has_header():
-    (message,) = build_messages(ranked(make_job("1"), make_job("2")))
-    assert message.startswith("**2 new jobs**\n\n★ **Acme**")
-    assert message.count("<https://example.com/") == 2
+def test_long_title_is_cut_to_discord_limit():
+    embed = job_embed(make_job(title="x" * 300))
+    assert len(embed["title"]) == 256
+    assert embed["title"].endswith("…")
+
+
+def test_one_payload_with_header():
+    (payload,) = build_payloads(ranked(make_job("1"), make_job("2")))
+    assert payload["content"] == "🔍 **2 new jobs**"
+    assert len(payload["embeds"]) == 2
+    assert payload["allowed_mentions"] == {"parse": []}
 
 
 def test_header_singular():
-    assert build_messages(ranked(make_job()))[0].startswith("**1 new job**\n\n")
+    assert build_payloads(ranked(make_job()))[0]["content"] == "🔍 **1 new job**"
 
 
-def test_splits_at_limit_without_breaking_jobs():
-    jobs = [make_job(str(i), title="Trainee " + "x" * 150) for i in range(40)]
-    messages = build_messages(ranked(*jobs))
-    assert len(messages) > 1
-    assert all(len(m) <= MESSAGE_LIMIT for m in messages)
-    assert sum(m.count("<https://") for m in messages) == 40
-    for message in messages:  # every job block stays whole: title line + detail line
-        assert message.count("**Acme**") == message.count("<https://")
+def test_splits_at_ten_embeds_and_keeps_order():
+    payloads = build_payloads(ranked(*(make_job(str(i), title=f"Job {i}") for i in range(23))))
+    assert [len(p["embeds"]) for p in payloads] == [10, 10, 3]
+    assert "content" not in payloads[1]
+    titles = [e["title"] for p in payloads for e in p["embeds"]]
+    assert titles == [f"Job {i}" for i in range(23)]
 
 
-def test_oversized_job_is_truncated():
-    (message,) = build_messages(ranked(make_job(title="x" * 3000)))
-    assert len(message) <= MESSAGE_LIMIT
-    assert message.startswith("**1 new job**\n\n★ **Acme**")
-    assert message.endswith("…")
+def test_splits_on_embed_characters():
+    jobs = [make_job(str(i), title="T" * 250, location="L" * 900) for i in range(9)]
+    payloads = build_payloads(ranked(*jobs))
+    assert len(payloads) > 1
+    for payload in payloads:
+        assert len(payload["embeds"]) <= EMBEDS_PER_MESSAGE
+        assert sum(embed_size(e) for e in payload["embeds"]) <= EMBED_CHARS_PER_MESSAGE
 
 
 def recording_client(statuses: list[int]):
@@ -92,21 +117,23 @@ def recording_client(statuses: list[int]):
     return httpx.Client(transport=httpx.MockTransport(handler)), posted
 
 
-def test_send_posts_with_mentions_disabled():
+def test_send_posts_embeds_with_mentions_disabled():
     client, posted = recording_client([204])
     DiscordNotifier(WEBHOOK, client, sleep=lambda _: None).send(ranked(make_job()))
     (request,) = posted
     assert str(request.url) == WEBHOOK
-    body = request.read().decode()
-    assert '"allowed_mentions":{"parse":[]}' in body.replace(" ", "")
+    body = json.loads(request.read())
+    assert body["allowed_mentions"] == {"parse": []}
+    assert body["embeds"][0]["url"] == "https://example.com/1"
 
 
 def test_send_pauses_between_messages():
     client, posted = recording_client([])
     pauses = []
-    jobs = [make_job(str(i), title="Trainee " + "x" * 150) for i in range(40)]
+    jobs = [make_job(str(i)) for i in range(25)]
     DiscordNotifier(WEBHOOK, client, pause=1.0, sleep=pauses.append).send(ranked(*jobs))
-    assert len(pauses) == len(posted) - 1
+    assert len(posted) == 3
+    assert len(pauses) == 2
 
 
 def test_rate_limit_is_retried_once():
@@ -121,16 +148,3 @@ def test_failure_raises():
     client, _ = recording_client([500])
     with pytest.raises(httpx.HTTPStatusError):
         DiscordNotifier(WEBHOOK, client, sleep=lambda _: None).send(ranked(make_job()))
-
-
-def test_stars_and_reason_line():
-    job = make_job(company="ICEYE", title="Engineering Intern", location="Espoo", url="https://x/1")
-    text = format_job(job, Rank(11, 3, ("intern", "Espoo", "C++, engine")))
-    assert text == (
-        "★★★ **ICEYE** – Engineering Intern\nEspoo · <https://x/1>\n↳ intern · Espoo · C++, engine"
-    )
-
-
-def test_messages_keep_the_given_order():
-    (message,) = build_messages(ranked(make_job("1", title="Best"), make_job("2", title="Second")))
-    assert message.index("Best") < message.index("Second")
