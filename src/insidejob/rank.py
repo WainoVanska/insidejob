@@ -47,7 +47,7 @@ class RankConfig:
     interests: tuple[Rule, ...]
     start: tuple[Rule, ...]
     deadline: tuple[DeadlineRule, ...]
-    three_stars: float = 10
+    three_stars: float = 9
     two_stars: float = 6
 
 
@@ -57,6 +57,7 @@ class Rank:
     stars: int  # match level: 3 strong (green), 2 some (yellow), 1 weak (red)
     reasons: tuple[str, ...] = field(default=())
     out_of: float = 0  # best score possible with this config; 0 = not known
+    places: tuple[str, ...] = ()  # the job's locations, most relevant first
 
 
 @dataclass(frozen=True)
@@ -89,7 +90,9 @@ DEFAULT_RANK = RankConfig(
         Rule(2, _rx(r"finland|suomi")),
         Rule(1, _rx(r"\bremote\b|\b(eu|europe|emea)\b")),
     ),
-    unknown_location=1,
+    # Every watched company is Finnish, so a job without a location is most likely in
+    # Finland: score it like "rest of Finland" rather than like remote.
+    unknown_location=2,
     interests=(
         Rule(
             3,
@@ -164,7 +167,26 @@ def score(job: Job, config: RankConfig, today: date) -> Rank:
                 add("closes today" if days == 0 else f"closes in {days} d", deadline.points)
                 break
 
-    return Rank(points, _stars(points, config), tuple(reasons), max_score(config))
+    return Rank(
+        points,
+        _stars(points, config),
+        tuple(reasons),
+        max_score(config),
+        _places_by_relevance(job.location, config.location),
+    )
+
+
+def _places_by_relevance(location: str, rules: tuple[Rule, ...]) -> tuple[str, ...]:
+    """Split "A; B; C" and order by the first location rule each place matches.
+
+    Places no rule matches go last; ties keep the source's order.
+    """
+    places = [p.strip() for p in location.split(";") if p.strip()]
+
+    def rank(place: str) -> int:
+        return next((i for i, r in enumerate(rules) if r.match.search(place)), len(rules))
+
+    return tuple(sorted(places, key=rank))
 
 
 def max_score(config: RankConfig) -> float:

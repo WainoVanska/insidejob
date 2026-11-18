@@ -73,4 +73,19 @@ def test_reason_points_add_up_to_the_score():
 
 def test_unknown_location_is_listed_as_a_reason():
     rank = score(make_job(location=""), DEFAULT_RANK, date(2026, 11, 18))
-    assert "no location +1" in rank.reasons
+    assert "no location +2" in rank.reasons
+
+
+def test_places_are_ordered_by_relevance_and_capped():
+    job = make_job(location="Warsaw, Poland; Remote - EMEA; Tampere, Finland; Espoo, Finland")
+    rank = score(job, DEFAULT_RANK, date(2026, 11, 18))
+    assert rank.places == ("Espoo, Finland", "Tampere, Finland", "Remote - EMEA", "Warsaw, Poland")
+    assert detail_parts(job, places=rank.places)[0] == (
+        "Espoo, Finland; Tampere, Finland; Remote - EMEA +1 more"
+    )
+
+
+def test_three_places_or_fewer_are_all_shown():
+    job = make_job(location="Valencia, Spain; Espoo, Finland")
+    rank = score(job, DEFAULT_RANK, date(2026, 11, 18))
+    assert detail_parts(job, places=rank.places)[0] == "Espoo, Finland; Valencia, Spain"

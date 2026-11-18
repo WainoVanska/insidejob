@@ -37,7 +37,7 @@ def format_job(job: Job, rank: Rank | None = None) -> str:
     if rank:
         title = f"{match_dot(rank)} {title} · `{score_text(rank)}`"
     lines = [title]
-    if details := detail_parts(job, icons=True):
+    if details := detail_parts(job, icons=True, places=rank.places if rank else ()):
         lines.append(" · ".join(escape(p) for p in details))
     lines.append(f"🔗 <{job.url}>")
     if rank and rank.reasons:

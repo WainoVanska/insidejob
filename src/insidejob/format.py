@@ -11,11 +11,15 @@ ICONS = {"location": "📍", "workplace": "🏢", "employment": "💼", "start":
 MATCH_DOTS = {3: "🟢", 2: "🟡", 1: "🔴"}
 
 
-def detail_parts(job: Job, *, icons: bool = False) -> list[str]:
+MAX_PLACES = 3
+
+
+def detail_parts(job: Job, *, icons: bool = False, places: tuple[str, ...] = ()) -> list[str]:
     """Location, workplace, employment, start, deadline: known values only.
 
     Values guessed by `enrich` are prefixed with `~`. With `icons`, each part starts
-    with its emoji (📍 Helsinki, 🏢 hybrid, …).
+    with its emoji (📍 Helsinki, 🏢 hybrid, …). `places` (most relevant first, from the
+    ranking) replaces the raw location and is cut to MAX_PLACES plus "+N more".
     """
     parts: list[str] = []
 
@@ -24,7 +28,12 @@ def detail_parts(job: Job, *, icons: bool = False) -> list[str]:
             text = f"~{text}"
         parts.append(f"{ICONS[name]} {text}" if icons else text)
 
-    if job.location:
+    if places:
+        shown = "; ".join(places[:MAX_PLACES])
+        if len(places) > MAX_PLACES:
+            shown += f" +{len(places) - MAX_PLACES} more"
+        add("location", shown)
+    elif job.location:
         add("location", job.location)
     if job.workplace:
         add("workplace", str(job.workplace))
@@ -58,7 +67,8 @@ def reason_line(rank: Rank, prefix: str = "↳ ") -> str:
 
 def plain(job: Job, rank: Rank | None = None) -> str:
     """Plain-text form for the terminal: match + title, details, and the reasons."""
-    details = " · ".join([*detail_parts(job), job.url])
+    places = rank.places if rank else ()
+    details = " · ".join([*detail_parts(job, places=places), job.url])
     text = f"{job.company} – {job.title}"
     if rank:
         text = f"{match_dot(rank)} {text} · {score_text(rank)}"
