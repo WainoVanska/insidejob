@@ -28,6 +28,7 @@ sources:
   - { company: HypeHype, type: rss, board: hypehype.teamtailor.com/jobs.rss }
   - { company: Siili, type: rss, board: siili.teamtailor.com/jobs.rss }
   - { company: Vincit, type: rss, board: vincitoyj.teamtailor.com/jobs.rss }
+
   # Ashby: https://api.ashbyhq.com/posting-api/job-board/<board>
   - { company: ICEYE, type: ashby, board: iceye }
   - { company: Supercell, type: ashby, board: supercell }
@@ -44,6 +45,10 @@ sources:
     type: workday
     board: kone.wd3.myworkdayjobs.com/Careers
     options: { facet: Finland }
+
+  # Workable: the account slug from apply.workable.com/<board>
+  - { company: Varjo, type: workable, board: varjo-1 }
+  - { company: Nitor, type: workable, board: nitor }
 
   # WordPress job feeds (newest ~10 posts only, which is enough for new-job alerts).
   - { company: Gofore, type: rss, board: gofore.com/en/careers/feed/ }

@@ -15,7 +15,7 @@ A `~` means insidejob guessed that detail from the job text. The company didn't 
 
 ## How it works
 
-1. Fetch each company's jobs from the official API of their hiring system. Right now that's Greenhouse.
+1. Fetch each company's jobs from the official API or feed of their hiring system: Greenhouse, Ashby, Workday, Workable, or an RSS feed (Teamtailor, WordPress).
 2. Keep the jobs whose title matches your keywords and whose location matches your places.
 3. Compare them with the jobs already seen, which are saved in `seen.json`.
 4. Send the new ones to Discord in one message.
