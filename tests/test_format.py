@@ -3,7 +3,7 @@ from datetime import date
 from insidejob.format import detail_parts, fi_date, plain, score_text
 from insidejob.models import Employment, Workplace
 from insidejob.rank import DEFAULT_RANK, Rank, max_score, score
-from tests.helpers import make_job
+from tests.helpers import EXAMPLE_RANK, make_job
 
 
 def test_fi_date_has_no_zero_padding():
@@ -60,25 +60,29 @@ def test_plain_with_rank():
     assert lines[2] == "    ↳ intern +3 · Helsinki +3"
 
 
-def test_default_maximum_is_13():
-    assert max_score(DEFAULT_RANK) == 3 + 3 + 3 + 2 + 2
+def test_example_maximum_is_13():
+    assert max_score(EXAMPLE_RANK) == 3 + 3 + 3 + 2 + 2
+
+
+def test_neutral_default_maximum_is_title_plus_deadline():
+    assert max_score(DEFAULT_RANK) == 3 + 2
 
 
 def test_reason_points_add_up_to_the_score():
     job = make_job(title="Summer Trainee 2027, OpenGL", location="Espoo", start="Jun 2027")
-    rank = score(job, DEFAULT_RANK, date(2026, 11, 18))
+    rank = score(job, EXAMPLE_RANK, date(2026, 11, 18))
     assert sum(float(reason.rsplit(" ", 1)[1]) for reason in rank.reasons) == rank.score
     assert rank.out_of == 13
 
 
 def test_unknown_location_is_listed_as_a_reason():
-    rank = score(make_job(location=""), DEFAULT_RANK, date(2026, 11, 18))
+    rank = score(make_job(location=""), EXAMPLE_RANK, date(2026, 11, 18))
     assert "no location +2" in rank.reasons
 
 
 def test_places_are_ordered_by_relevance_and_capped():
     job = make_job(location="Warsaw, Poland; Remote - EMEA; Tampere, Finland; Espoo, Finland")
-    rank = score(job, DEFAULT_RANK, date(2026, 11, 18))
+    rank = score(job, EXAMPLE_RANK, date(2026, 11, 18))
     assert rank.places == ("Espoo, Finland", "Tampere, Finland", "Remote - EMEA", "Warsaw, Poland")
     assert detail_parts(job, places=rank.places)[0] == (
         "Espoo, Finland; Tampere, Finland; Remote - EMEA +1 more"
@@ -87,5 +91,5 @@ def test_places_are_ordered_by_relevance_and_capped():
 
 def test_three_places_or_fewer_are_all_shown():
     job = make_job(location="Valencia, Spain; Espoo, Finland")
-    rank = score(job, DEFAULT_RANK, date(2026, 11, 18))
+    rank = score(job, EXAMPLE_RANK, date(2026, 11, 18))
     assert detail_parts(job, places=rank.places)[0] == "Espoo, Finland; Valencia, Spain"

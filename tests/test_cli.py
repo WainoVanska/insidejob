@@ -68,8 +68,9 @@ def test_dry_run_prints_matches_and_saves_nothing(files, fake, capsys):
     config, state = files
     assert run_cli(config, state, "--dry-run") == 0
     out = capsys.readouterr().out
-    assert "[seed] 🟡 Acme – Summer Trainee · 6 / 13" in out
-    assert "↳ intern +3 · Helsinki +3" in out
+    # Neutral default ranking: title 3 of max 5 (title 3 + deadline 2) = 60 % → yellow.
+    assert "[seed] 🟡 Acme – Summer Trainee · 3 / 5" in out
+    assert "↳ intern +3" in out
     assert not state.exists()
     assert fake["posts"] == []
 
