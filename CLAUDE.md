@@ -73,9 +73,10 @@ See `docs/sources.md` (verified 2026-11-18). Greenhouse 9, Teamtailor RSS 5, Wor
 - [x] Phase 1: source research → `docs/sources.md`
 - [x] Design agreed (above)
 - [x] PR 1 skeleton (#3), merged as #21
-- [ ] v1 PRs, stacked, merge in order: #22 Greenhouse (#4) → config + filters (#5) → state/enrich/pipeline (#6) → Discord (#7) → scheduled Action (#8)
-- [x] Orphan `state` branch created on origin (README only; first run seeds silently)
-- [ ] Wäinö: Discord webhook → repo secret `DISCORD_WEBHOOK_URL`, run the workflow manually once, then make the repo public
+- [x] v1 live (2026-11-18): #4–#8 merged via #27, Discord alerts confirmed, actions bumped (#28), README (#29)
+- [ ] More adapters, stacked PRs: RSS (#9) → Ashby (#10) → Workday (#12) → Workable (#13). 23 companies in `config.yaml`
+- [ ] Wäinö: make the repo public
+- Later / needs design: Oracle (#14), Eightfold (#15), Aiven token (#16), field filters (#18), match score (#19), Gmail (#20). Telegram (#17) parked: not wanted for now.
 
 ## Implementation notes (v1)
 - The state diff runs on **all** fetched jobs, not only matches: loosening a filter never alerts on old postings. Order per source: fetch → parse → state diff → filter → enrich.
@@ -85,3 +86,11 @@ See `docs/sources.md` (verified 2026-11-18). Greenhouse 9, Teamtailor RSS 5, Wor
 - Exit codes: 0 ok, 1 a source or the alert failed, 2 bad config/state or no webhook.
 - `--dry-run` prints every matching job tagged seed/NEW/seen, so filters can be checked on a fresh state.
 - Jobs with an empty location pass the location filter.
+
+## Adapter notes
+- Each adapter: `fetch(client, board, options)` (HTTP) + pure `parse(raw, board, company)`; optional `OPTIONS = {name: required}` validated by config. Register in `adapters/__init__.py`.
+- `board` doubles as the state key, so keep it stable: rss/workday use the URL without `https://`.
+- Ashby and Workable *list* workplace/employment (not inferred). ICEYE marks interns `FullTime`: we keep what the source says.
+- Teamtailor `remoteStatus`: fully/hybrid/none → remote/hybrid/onsite.
+- WordPress feeds only show the newest ~10 posts: fine for new-job alerts.
+- Workday: undocumented API, page size max 20, offsets past the end repeat results, rate-limits (saw a 429 after ~10 quick requests while exploring). `facet` option narrows server-side; ~2–3 requests per board per run.

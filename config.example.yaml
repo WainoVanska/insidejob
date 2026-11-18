@@ -7,8 +7,15 @@
 #
 # sources: one entry per job board
 #   company   name shown in alerts
-#   type      adapter: greenhouse (more coming: rss, ashby)
-#   board     the board's id in that system, e.g. boards.greenhouse.io/<board>
+#   type      adapter: greenhouse, ashby, workday, workable or rss
+#   board     where the jobs are:
+#               greenhouse  board token from boards.greenhouse.io/<board>
+#               ashby       board name from jobs.ashbyhq.com/<board>
+#               workday     career site URL without https://, e.g. acme.wd3.myworkdayjobs.com/Careers
+#               workable    account from apply.workable.com/<board>
+#               rss         feed URL without https://, e.g. acme.teamtailor.com/jobs.rss
+#   options   adapter settings; workday needs `facet`: a location name from the site's
+#             filters (e.g. Finland), so only those jobs are fetched
 #   filters   optional; each key given here REPLACES the global one for this source
 
 filters:

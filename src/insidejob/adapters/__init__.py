@@ -9,7 +9,7 @@ from typing import Any, Protocol
 
 import httpx
 
-from insidejob.adapters import ashby, greenhouse, rss, workday
+from insidejob.adapters import ashby, greenhouse, rss, workable, workday
 from insidejob.models import Job
 
 
@@ -29,4 +29,5 @@ ADAPTERS: dict[str, Adapter] = {
     rss.TYPE: rss,
     ashby.TYPE: ashby,
     workday.TYPE: workday,
+    workable.TYPE: workable,
 }
