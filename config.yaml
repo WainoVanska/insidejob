@@ -23,14 +23,13 @@ looking_for:
   start: summer 2027
 
 # ── Companies to watch ────────────────────────────────────────────────────────────
-# Paste the link of any job ad (or the job list) from a company's careers page.
-# Works with Greenhouse, Ashby, Workable and Teamtailor, and job feeds ending in .rss.
-# Write "Name: link" to choose the name shown in alerts.
+# A preset is a ready-made list: fi-software = 21 Finnish software and games companies
+# (see presets/fi-software.yaml). Remove the line to pick every company yourself.
+#
+# Add your own: paste the link of any job ad (or the job list) from a company's careers
+# page. Works with Greenhouse, Ashby, Workable and Teamtailor, and job feeds ending in
+# .rss. Write "Name: link" to choose the name shown in alerts. A company that's already
+# in the preset is simply watched once.
 companies:
-  - https://job-boards.greenhouse.io/wolt
-  - "Smartly: https://job-boards.greenhouse.io/smartlyio"
-  - "ICEYE: https://jobs.ashbyhq.com/iceye"
-  - https://jobs.ashbyhq.com/supercell
-  - https://jobs.ashbyhq.com/reaktor
-  - https://apply.workable.com/nitor
-  - https://careers.futurice.com/jobs.rss
+  - preset: fi-software
+  # - "Acme: https://job-boards.greenhouse.io/acme"

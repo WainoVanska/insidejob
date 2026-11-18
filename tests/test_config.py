@@ -224,3 +224,72 @@ def test_bad_company_link_names_the_entry():
 def test_companies_must_be_a_list():
     with pytest.raises(ConfigError, match="companies must be a list"):
         parse_config({"filters": {"title": "x"}, "companies": "https://jobs.ashbyhq.com/a"})
+
+
+def test_preset_expands_and_merges_with_own_links(tmp_path):
+    presets = tmp_path / "presets"
+    presets.mkdir()
+    (presets / "fi-test.yaml").write_text(
+        "name: Test\ncompanies:\n"
+        "  - 'Wolt: https://job-boards.greenhouse.io/wolt'\n"
+        "  - { company: Nitor, type: workable, board: nitor }\n",
+        encoding="utf-8",
+    )
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        "filters: {title: intern}\n"
+        "companies:\n"
+        "  - 'Wolt Oy: https://job-boards.greenhouse.io/wolt'\n"  # listed first: wins
+        "  - preset: fi-test\n"
+        "  - https://jobs.ashbyhq.com/iceye\n",
+        encoding="utf-8",
+    )
+    cfg = load_config(config)  # presets/ next to the config is used
+    assert [(s.company, s.key) for s in cfg.sources] == [
+        ("Wolt Oy", "greenhouse:wolt"),
+        ("Nitor", "workable:nitor"),
+        ("Iceye", "ashby:iceye"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("entry", "message"),
+    [
+        ({"preset": "nope"}, "unknown preset 'nope' .*fi-software"),
+        ({"preset": "../config"}, "preset must be a name"),
+        ({"preset": "fi-software", "board": "x"}, "on its own line"),
+    ],
+)
+def test_bad_preset_explains(entry, message):
+    with pytest.raises(ConfigError, match=message):
+        parse_config({"filters": {"title": "x"}, "companies": [entry]})
+
+
+def test_presets_cannot_nest(tmp_path):
+    (tmp_path / "a.yaml").write_text("companies: [{preset: b}]\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="can't include presets"):
+        parse_config(
+            {"filters": {"title": "x"}, "companies": [{"preset": "a"}]}, presets_dir=tmp_path
+        )
+
+
+def test_shipped_presets_are_valid_and_have_no_workday():
+    from insidejob.config import preset_names
+
+    for name in preset_names():
+        cfg = parse_config({"filters": {"title": "x"}, "companies": [{"preset": name}]})
+        assert len(cfg.sources) >= 5, name
+        assert "workday" not in {s.type for s in cfg.sources}, name
+
+
+def test_fi_software_keeps_the_verified_board_keys():
+    """Same keys as hand-written entries, so switching to the preset never re-seeds."""
+    cfg = parse_config({"filters": {"title": "x"}, "companies": [{"preset": "fi-software"}]})
+    keys = {s.key for s in cfg.sources}
+    assert len(keys) == 21
+    assert {
+        "greenhouse:supermetricsoy",
+        "rss:vincitoyj.teamtailor.com/jobs.rss",
+        "rss:gofore.com/en/careers/feed/",
+        "workable:varjo-1",
+    } <= keys
