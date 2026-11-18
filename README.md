@@ -53,6 +53,10 @@ uv run pytest                    # run the tests
 
 For a real run, put `DISCORD_WEBHOOK_URL=...` in a `.env` file and run `uv run insidejob run`.
 
+## How it was built
+
+The idea, the requirements and the design decisions are mine. I wrote the code together with Claude Code, an AI coding assistant, and every pull request explains why a change was made.
+
 ## License
 
 MIT
