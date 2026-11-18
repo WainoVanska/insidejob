@@ -1,0 +1,187 @@
+{
+  "apiVersion": "1",
+  "jobs": [
+    {
+      "id": "1b8f590b-fd9a-4c7a-ae0d-6e15f0bed42f",
+      "title": "ICEYE Engineering Intern Lab 2027",
+      "department": "Engineering",
+      "team": "Engineering",
+      "employmentType": "FullTime",
+      "location": "Espoo",
+      "secondaryLocations": [
+        {
+          "location": "Valencia",
+          "address": {
+            "postalAddress": {
+              "addressRegion": "Comunidad Valenciana",
+              "addressCountry": "Spain",
+              "addressLocality": "Valencia"
+            }
+          }
+        },
+        {
+          "location": "Warsaw",
+          "address": {
+            "postalAddress": {
+              "addressRegion": "Masovian Voivodeship",
+              "addressCountry": "Poland",
+              "addressLocality": "Warsaw"
+            }
+          }
+        }
+      ],
+      "publishedAt": "2026-10-22T14:13:57.226+00:00",
+      "isListed": true,
+      "isRemote": true,
+      "workplaceType": "Hybrid",
+      "address": {
+        "postalAddress": {
+          "addressRegion": "Uusimaa",
+          "streetAddress": "",
+          "addressCountry": "Finland",
+          "addressLocality": "Espoo"
+        }
+      },
+      "jobUrl": "https://jobs.ashbyhq.com/iceye/1b8f590b-fd9a-4c7a-ae0d-6e15f0bed42f",
+      "applyUrl": "https://jobs.ashbyhq.com/iceye/1b8f590b-fd9a-4c7a-ae0d-6e15f0bed42f/application",
+      "descriptionHtml": "<h1><strong>ICEYE Engineering Intern Lab 2027</strong><br /><br /><br /></h1><p style=\"min-height:1.5em\"><strong>Get paid to build the future of space.</strong><br /><br /></p><p style=\"min-height:1.5",
+      "descriptionPlain": "ICEYE ENGINEERING INTERN LAB 2027\n\n\n\n\nGet paid to build the future of space.\n\n\n\nJoin ICEYE, the company operating the world’s largest Synthetic Aperture Radar (SAR) satellite constellation, for a fully paid, onsite internship where AI meets real-world engineering. The ICEYE Engineering Internship Pr"
+    },
+    {
+      "id": "c004f3c1-79a7-439f-af53-57ef6e7fd531",
+      "title": "Director Supply Chain, Category",
+      "department": "Global Manufacturing Organization",
+      "team": "Global Supply Chain",
+      "employmentType": "FullTime",
+      "location": "Espoo",
+      "secondaryLocations": [
+        {
+          "location": "Valencia",
+          "address": {
+            "postalAddress": {
+              "addressRegion": "Comunidad Valenciana",
+              "addressCountry": "Spain",
+              "addressLocality": "Valencia"
+            }
+          }
+        },
+        {
+          "location": "Athens",
+          "address": {
+            "postalAddress": {
+              "addressRegion": "Attica",
+              "addressCountry": "Greece",
+              "addressLocality": "Athens"
+            }
+          }
+        },
+        {
+          "location": "Munich",
+          "address": {
+            "postalAddress": {
+              "addressRegion": "Munich Metropolitan Region",
+              "addressCountry": "Germany",
+              "addressLocality": "Munich"
+            }
+          }
+        },
+        {
+          "location": "Warsaw",
+          "address": {
+            "postalAddress": {
+              "addressRegion": "Masovian Voivodeship",
+              "addressCountry": "Poland",
+              "addressLocality": "Warsaw"
+            }
+          }
+        }
+      ],
+      "publishedAt": "2026-11-11T06:20:45.594+00:00",
+      "isListed": true,
+      "isRemote": false,
+      "workplaceType": "OnSite",
+      "address": {
+        "postalAddress": {
+          "addressRegion": "Uusimaa",
+          "streetAddress": "",
+          "addressCountry": "Finland",
+          "addressLocality": "Espoo"
+        }
+      },
+      "jobUrl": "https://jobs.ashbyhq.com/iceye/c004f3c1-79a7-439f-af53-57ef6e7fd531",
+      "applyUrl": "https://jobs.ashbyhq.com/iceye/c004f3c1-79a7-439f-af53-57ef6e7fd531/application",
+      "descriptionHtml": "<h2><strong>Role highlights:</strong></h2><p style=\"min-height:1.5em\"></p><ul style=\"min-height:1.5em\"><li><p style=\"min-height:1.5em\"><strong>Director, Supply Chain Category</strong></p></li><li><p s",
+      "descriptionPlain": "ROLE HIGHLIGHTS:\n\n\n\n - Director, Supply Chain Category\n\n - Location: Espoo, Finland / Munich, Germany / Warsaw, Poland / Valencia, Spain / Athens, Greece / Netherlands\n\n - Department: Global Supply Chain\n\n - Reports to: Global Director Supply Chain\n\n - Employment type: Permanent\n\n - Workplace model:"
+    },
+    {
+      "id": "bd583979-0670-41d9-b149-c5156c5d6d11",
+      "title": "Marketing & Communications Manager, France & EU",
+      "department": "Marketing",
+      "team": "Data & Missions Marketing",
+      "employmentType": "FullTime",
+      "location": "France",
+      "secondaryLocations": [],
+      "publishedAt": "2026-10-27T16:07:53.701+00:00",
+      "isListed": true,
+      "isRemote": true,
+      "workplaceType": "Remote",
+      "address": {
+        "postalAddress": {
+          "addressCountry": "France"
+        }
+      },
+      "jobUrl": "https://jobs.ashbyhq.com/iceye/bd583979-0670-41d9-b149-c5156c5d6d11",
+      "applyUrl": "https://jobs.ashbyhq.com/iceye/bd583979-0670-41d9-b149-c5156c5d6d11/application",
+      "descriptionHtml": "<h2><strong>Role highlights:</strong></h2><ul style=\"min-height:1.5em\"><li><p style=\"min-height:1.5em\">Marketing &amp; Communications Manager, France &amp; EU</p></li><li><p style=\"min-height:1.5em\">L",
+      "descriptionPlain": "ROLE HIGHLIGHTS:\n\n - Marketing & Communications Manager, France & EU\n\n - Location: France (remote) \n\n - Department: Data & Missions Marketing\n\n - Reports to: Director, Data & Missions Marketing\n\n - Employment type:  Permanent \n\n - Workplace model: Remote\n\n - Employment is subject to applicable secur"
+    },
+    {
+      "id": "7072cbcc-12a0-4ee5-a9ff-cbd6dd3d4764",
+      "title": "ISR Cell Operator - Germany",
+      "department": "CEO Office",
+      "team": "CEO Office",
+      "employmentType": "FullTime",
+      "location": "Berlin",
+      "secondaryLocations": [],
+      "publishedAt": "2026-09-03T08:20:49.044+00:00",
+      "isListed": true,
+      "isRemote": null,
+      "workplaceType": null,
+      "address": {
+        "postalAddress": {
+          "addressRegion": "Berlin/Brandenburg metropolitan region",
+          "addressCountry": "Germany",
+          "addressLocality": "Berlin"
+        }
+      },
+      "jobUrl": "https://jobs.ashbyhq.com/iceye/7072cbcc-12a0-4ee5-a9ff-cbd6dd3d4764",
+      "applyUrl": "https://jobs.ashbyhq.com/iceye/7072cbcc-12a0-4ee5-a9ff-cbd6dd3d4764/application",
+      "descriptionHtml": "<h2><strong>Role highlights:</strong></h2><ul style=\"min-height:1.5em\"><li><p style=\"min-height:1.5em\"><strong>ISR Cell Operator - Germany</strong></p></li><li><p style=\"min-height:1.5em\">Location: Be",
+      "descriptionPlain": "ROLE HIGHLIGHTS:\n\n - ISR Cell Operator - Germany\n\n - Location: Berlin, Germany\n\n - Department: ICEYE Germany\n\n - Reports to: Head of Intelligence, ICEYE Germany\n\n - Employment type: Permanent \n\n - Workplace model: On-site / shift-based\n\n - Employment is subject to applicable security screening (incl"
+    },
+    {
+      "id": "3a4df0b3-7d96-4589-88c0-4bd70aeaba44",
+      "title": "Unlisted TEST job - do not delete",
+      "department": "Live Games",
+      "team": "Player Platform",
+      "employmentType": "FullTime",
+      "location": "Helsinki",
+      "secondaryLocations": [],
+      "publishedAt": "2026-04-01T09:28:33.608+00:00",
+      "isListed": false,
+      "isRemote": false,
+      "workplaceType": "OnSite",
+      "address": {
+        "postalAddress": {
+          "addressRegion": "",
+          "addressCountry": "Finland",
+          "addressLocality": "Helsinki"
+        }
+      },
+      "jobUrl": "https://jobs.ashbyhq.com/supercell/3a4df0b3-7d96-4589-88c0-4bd70aeaba44",
+      "applyUrl": "https://jobs.ashbyhq.com/supercell/3a4df0b3-7d96-4589-88c0-4bd70aeaba44/application",
+      "descriptionHtml": "<p style=\"min-height:1.5em\">This is a test job posting. It is needed for developing and testing Ashby ↔ supercell.com <a target=\"_blank\" rel=\"noopener noreferrer nofollow\" href=\"https://supercell.com/",
+      "descriptionPlain": "This is a test job posting. It is needed for developing and testing Ashby ↔ supercell.com job board https://supercell.com/en/careers/#join integration.\n\n\n\nThis posting is not visible on the public website – only on our test sites \"dev\" and \"staging\".\n\n\n\nPlease do not delete this.\n\n\n\nIf you have ques"
+    }
+  ]
+}
