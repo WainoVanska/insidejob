@@ -1,7 +1,7 @@
 name: Suggest a company / preset
 description: A company (or a whole field) that should be in a ready-made preset.
 title: "Suggest: "
-labels: ["preset"]
+labels: ["research"]
 body:
   - type: markdown
     attributes:
