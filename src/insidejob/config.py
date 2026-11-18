@@ -61,6 +61,9 @@ FILTER_KEYS = ("title", "exclude", "location")
 RANK_RULE_KEYS = ("title", "location", "interests", "start")
 RANK_KEYS = (*RANK_RULE_KEYS, "unknown_location", "deadline", "levels", "experience")
 SOURCE_KEYS = ("company", "type", "board", "filters", "options")
+# Ready-made company lists (`- preset: fi-software`). A `presets/` folder next to the
+# config file wins, so a copy of the template can keep its own; else the repo's own.
+PRESETS_DIR = Path(__file__).resolve().parents[2] / "presets"
 
 
 class ConfigError(ValueError):
@@ -103,10 +106,43 @@ def load_config(path: Path) -> Config:
         data = yaml.safe_load(text)
     except yaml.YAMLError as exc:
         raise ConfigError(f"{path} is not valid YAML: {exc}") from exc
-    return parse_config(data)
+    local = path.parent / "presets"
+    return parse_config(data, presets_dir=local if local.is_dir() else PRESETS_DIR)
 
 
-def parse_config(data: Any) -> Config:
+def preset_names(presets_dir: Path = PRESETS_DIR) -> list[str]:
+    return sorted(p.stem for p in presets_dir.glob("*.yaml"))
+
+
+def _preset(raw: dict[str, Any], where: str, presets_dir: Path) -> list[tuple[Any, str]]:
+    """`{preset: fi-software}` -> the entries of presets/fi-software.yaml."""
+    if len(raw) != 1:
+        raise ConfigError(f"{where}: write a preset on its own line, e.g. `- preset: fi-software`")
+    name = raw["preset"]
+    available = ", ".join(preset_names(presets_dir)) or "none"
+    if not isinstance(name, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]*", name):
+        raise ConfigError(
+            f"{where}: preset must be a name like fi-software (available: {available})"
+        )
+    path = presets_dir / f"{name}.yaml"
+    if not path.is_file():
+        raise ConfigError(f"{where}: unknown preset {name!r} (available: {available})")
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise ConfigError(f"presets/{name}.yaml can't be read: {exc}") from exc
+    companies = data.get("companies") if isinstance(data, dict) else None
+    if not isinstance(companies, list) or not companies:
+        raise ConfigError(f"presets/{name}.yaml needs a non-empty `companies:` list")
+    entries = []
+    for i, entry in enumerate(companies):
+        if isinstance(entry, dict) and "preset" in entry:
+            raise ConfigError(f"presets/{name}.yaml companies[{i}]: presets can't include presets")
+        entries.append((entry, f"preset {name}: companies[{i}]"))
+    return entries
+
+
+def parse_config(data: Any, *, presets_dir: Path = PRESETS_DIR) -> Config:
     if not isinstance(data, dict):
         raise ConfigError("config must be a mapping with `looking_for` and `companies`")
 
@@ -133,7 +169,11 @@ def parse_config(data: Any) -> Config:
             continue
         if not isinstance(raw_list, list):
             raise ConfigError(f"{key} must be a list (one company per line, starting with -)")
-        entries += [(raw, f"{key}[{i}]") for i, raw in enumerate(raw_list)]
+        for i, raw in enumerate(raw_list):
+            if isinstance(raw, dict) and "preset" in raw:
+                entries += _preset(raw, f"{key}[{i}]", presets_dir)
+            else:
+                entries.append((raw, f"{key}[{i}]"))
     if not entries:
         raise ConfigError("add the companies to watch under `companies:` (job board links)")
 

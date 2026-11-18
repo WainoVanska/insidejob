@@ -322,3 +322,22 @@ def test_check_prints_no_annotations_locally(files, fake, capsys, monkeypatch):
     fake["board"] = 404
     assert run_check(config) == 1
     assert "::error" not in capsys.readouterr().out
+
+
+def test_presets_command_reports_failures(fake, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    presets = tmp_path / "presets"
+    presets.mkdir()
+    (presets / "one.yaml").write_text(
+        "companies: ['Acme: https://job-boards.greenhouse.io/acme']\n", encoding="utf-8"
+    )
+    report = tmp_path / "report.md"
+    assert cli.main(["presets", "--dir", str(presets), "--report", str(report)]) == 0
+    assert "All preset boards OK" in report.read_text(encoding="utf-8")
+
+    fake["board"] = 404
+    assert cli.main(["presets", "--dir", str(presets), "--report", str(report)]) == 1
+    text = report.read_text(encoding="utf-8")
+    assert "Some preset job boards failed" in text
+    assert "`greenhouse:acme`" in text
+    assert fake["posts"] == []

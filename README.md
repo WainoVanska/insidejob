@@ -23,7 +23,7 @@ You need a GitHub account and a Discord server (your own private one is fine).
 
 1. **Copy this repo:** click **Use this template → Create a new repository**. Private is fine.
 2. **Connect Discord:** in your Discord channel open **Edit channel → Integrations → Webhooks → New Webhook → Copy Webhook URL**. In your new repo open **Settings → Secrets and variables → Actions → New repository secret**, name it `DISCORD_WEBHOOK_URL` and paste the URL.
-3. **Say what you're looking for:** open [`config.yaml`](config.yaml) in your repo, click the pencil icon and fill in `looking_for` (roles, cities, interests, start date) and `companies`: paste the link of any job ad from each company's careers page. Click **Commit changes**.
+3. **Say what you're looking for:** open [`config.yaml`](config.yaml) in your repo, click the pencil icon and fill in `looking_for` (roles, cities, interests, start date) and `companies`: keep the ready-made `preset: fi-software` list (21 Finnish software and games companies) and/or paste the link of any job ad from each company you like. Click **Commit changes**.
    The **Check config** action then runs by itself. Open **Actions → Check config → the latest run** to see your companies, how many jobs match and your top 5 with their scores. If something is wrong, it says what in plain words.
 4. **Start it:** open **Actions → Check for new jobs → Run workflow**. You get a welcome message in Discord with the best matches open right now. From then on it checks every hour on weekdays and posts only new jobs, marked 🆕.
 

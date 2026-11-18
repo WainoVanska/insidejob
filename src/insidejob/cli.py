@@ -20,7 +20,13 @@ from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
-from insidejob.config import ConfigError, load_config
+from insidejob.config import (
+    PRESETS_DIR,
+    ConfigError,
+    load_config,
+    parse_config,
+    preset_names,
+)
 from insidejob.format import match_dot, plain, plural, reason_line, score_text
 from insidejob.models import Job
 from insidejob.notify.discord import DiscordNotifier, top_header, welcome_header
@@ -60,6 +66,14 @@ def build_parser() -> argparse.ArgumentParser:
         "check", help="check config.yaml: list companies, preview matches, send nothing"
     )
 
+    presets_cmd = commands.add_parser(
+        "presets", help="maintenance: check that every preset's job boards still answer"
+    )
+    presets_cmd.add_argument("--report", type=Path, help="write a markdown report here")
+    presets_cmd.add_argument(
+        "--dir", type=Path, default=PRESETS_DIR, help="presets folder (default: presets/)"
+    )
+
     for cmd in (run_cmd, top_cmd, check_cmd):
         cmd.add_argument("--config", type=Path, default=Path("config.yaml"), help="config file")
     for cmd in (run_cmd, top_cmd):
@@ -89,6 +103,8 @@ def main(argv: list[str] | None = None) -> int:
         return _top(args)
     if args.command == "check":
         return _check(args)
+    if args.command == "presets":
+        return _presets(args)
     return 2
 
 
@@ -247,6 +263,44 @@ def _check(args: argparse.Namespace) -> int:
 
     if result.failed:
         log.error("%d company board(s) failed: %s", len(result.failed), _keys(result.failed))
+        return 1
+    return 0
+
+
+def _presets(args: argparse.Namespace) -> int:
+    """Fetch every board in every preset once; exit 1 (and write a report) if any fail.
+
+    Used by the weekly presets workflow, which turns a failure into a GitHub issue."""
+    lines: list[str] = []
+    failed: list[str] = []
+    for name in preset_names(args.dir):
+        data = {"filters": {"title": "."}, "companies": [{"preset": name}]}
+        try:
+            config = parse_config(data, presets_dir=args.dir)
+        except ConfigError as exc:
+            failed.append(name)
+            lines.append(f"- ❌ **{name}**: {exc}")
+            continue
+        with make_client() as client:
+            result = run(config, State(), client, today=datetime.now(UTC).date())
+        for r in result.failed:
+            failed.append(r.source.key)
+            lines.append(f"- ❌ **{name}**: {_md(r.source.company)} (`{r.source.key}`): {r.error}")
+        ok = len(result.sources) - len(result.failed)
+        print(f"{name}: {ok} of {len(result.sources)} boards OK")
+
+    if args.report:
+        heading = "## Some preset job boards failed" if failed else "## All preset boards OK"
+        hint = (
+            "\n\nCheck each link by hand: the company may have moved to another hiring "
+            "system or renamed its board. Fix or remove it in `presets/`, and update "
+            "`docs/sources.md`."
+            if failed
+            else ""
+        )
+        args.report.write_text("\n".join([heading, "", *lines]) + hint + "\n", encoding="utf-8")
+    if failed:
+        log.error("%d preset board(s) failed: %s", len(failed), ", ".join(failed))
         return 1
     return 0
 

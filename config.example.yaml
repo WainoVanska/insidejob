@@ -47,6 +47,9 @@ looking_for:
 #   Teamtailor  <company>.teamtailor.com/jobs
 #   Job feeds   any link ending in .rss or /feed/ (e.g. careers.futurice.com/jobs.rss)
 companies:
+  # A preset: a ready-made, checked list in presets/ (fi-software: 21 Finnish software
+  # and games companies). Combine it with your own links freely.
+  # - preset: fi-software
   - https://job-boards.greenhouse.io/wolt
   - https://jobs.ashbyhq.com/supercell
   - "Nitor: https://apply.workable.com/nitor"

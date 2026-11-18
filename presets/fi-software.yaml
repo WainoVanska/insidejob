@@ -1,0 +1,39 @@
+# Finnish software, product and games companies with a supported hiring system.
+# Use it in config.yaml with:   companies: [ { preset: fi-software } ]
+#
+# Every board here was checked by hand: the endpoint answers, and the terms/robots
+# check is recorded in docs/sources.md. A weekly action (presets.yml) pings each board
+# and opens an issue when one stops working. Workday companies (NVIDIA, KONE) are left
+# out: Workday blocks GitHub Actions. To suggest a company, open an issue.
+name: Finnish software companies
+companies:
+  # Greenhouse
+  - "Smartly: https://job-boards.greenhouse.io/smartlyio"
+  - "Wolt: https://job-boards.greenhouse.io/wolt"
+  - "Housemarque: https://job-boards.greenhouse.io/housemarque"
+  - "RELEX Solutions: https://job-boards.greenhouse.io/relex"
+  - "Qt Group: https://job-boards.greenhouse.io/theqtcompany"
+  - "Oura: https://job-boards.greenhouse.io/oura"
+  - "Supermetrics: https://job-boards.greenhouse.io/supermetricsoy"
+  - "Solita: https://job-boards.greenhouse.io/solita"
+  - "Small Giant: https://job-boards.greenhouse.io/sggcareers"
+
+  # Teamtailor (job feeds)
+  - "Futurice: https://careers.futurice.com/jobs.rss"
+  - "Kuva Space: https://careers.kuvaspace.com/jobs.rss"
+  - "HypeHype: https://hypehype.teamtailor.com/jobs"
+  - "Siili: https://siili.teamtailor.com/jobs"
+  - "Vincit: https://vincitoyj.teamtailor.com/jobs"
+
+  # Ashby
+  - "ICEYE: https://jobs.ashbyhq.com/iceye"
+  - "Supercell: https://jobs.ashbyhq.com/supercell"
+  - "Reaktor: https://jobs.ashbyhq.com/reaktor"
+
+  # Workable
+  - "Varjo: https://apply.workable.com/varjo-1"
+  - "Nitor: https://apply.workable.com/nitor"
+
+  # WordPress job feeds (newest ~10 posts only, enough for new-job alerts)
+  - "Gofore: https://gofore.com/en/careers/feed/"
+  - "Rovio: https://www.rovio.com/open-positions/feed/"
