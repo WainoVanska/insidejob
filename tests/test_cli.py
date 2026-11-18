@@ -81,12 +81,20 @@ def test_dry_run_needs_no_webhook(files, fake, monkeypatch):
     assert run_cli(config, state, "--dry-run") == 0
 
 
+def seed(config, state, fake):
+    """First run: records the board and sends the welcome message; then clear posts."""
+    assert run_cli(config, state) == 0
+    fake["posts"].clear()
+
+
 def test_real_run_seeds_then_alerts(files, fake, capsys):
     config, state = files
     assert run_cli(config, state) == 0
-    assert fake["posts"] == []  # first run seeds silently
+    (welcome,) = fake["posts"]  # first run: no job alerts, only the welcome message
+    assert welcome["content"].startswith("✅ **insidejob is set up!** Watching 1 company")
     assert json.loads(state.read_text(encoding="utf-8"))["greenhouse:acme"]
 
+    fake["posts"].clear()
     fake["board"] = TWO_JOBS
     assert run_cli(config, state) == 0
     assert "1 new job(s)" in capsys.readouterr().out
@@ -98,14 +106,14 @@ def test_real_run_seeds_then_alerts(files, fake, capsys):
 
 def test_nothing_new_sends_nothing(files, fake):
     config, state = files
-    run_cli(config, state)
+    seed(config, state, fake)
     run_cli(config, state)
     assert fake["posts"] == []
 
 
 def test_failed_alert_keeps_jobs_new(files, fake):
     config, state = files
-    run_cli(config, state)
+    seed(config, state, fake)
     fake["board"] = TWO_JOBS
     fake["discord"] = 500
     assert run_cli(config, state) == 1
@@ -165,7 +173,7 @@ def run_top(config, state, *extra):
 
 def test_top_sends_best_jobs_and_never_writes_state(files, fake):
     config, state = files
-    run_cli(config, state)  # seed job 1
+    seed(config, state, fake)  # job 1
     before = state.read_text(encoding="utf-8")
 
     fake["board"] = TWO_JOBS
@@ -178,7 +186,7 @@ def test_top_sends_best_jobs_and_never_writes_state(files, fake):
 
 def test_top_marks_recently_seen_jobs_fresh(files, fake):
     config, state = files
-    run_cli(config, state)  # board seeded today: job 1 first seen today
+    seed(config, state, fake)  # board seeded today: job 1 first seen today
     fake["board"] = TWO_JOBS  # job 2 is brand new
     run_top(config, state)
     titles = [e["title"] for e in fake["posts"][0]["embeds"]]
@@ -219,3 +227,98 @@ def test_top_count_must_be_positive(files, count):
     with pytest.raises(SystemExit) as exc:
         run_top(config, state, "--count", count)
     assert exc.value.code == 2
+
+
+def test_welcome_shows_the_best_three_matches(files, fake):
+    config, state = files
+    fake["board"] = greenhouse_board(
+        *((i, f"Trainee {i}", "Helsinki") for i in range(1, 6)), (9, "Chef", "Helsinki")
+    )
+    assert run_cli(config, state) == 0
+    (post,) = fake["posts"]
+    assert "Watching 1 company · 5 matching jobs right now" in post["content"]
+    assert "The best 3 matches open now:" in post["content"]
+    assert len(post["embeds"]) == 3
+    assert not any(e["title"].startswith("🆕") for e in post["embeds"])
+
+
+def test_failed_welcome_still_saves_state_and_exits_1(files, fake):
+    config, state = files
+    fake["discord"] = 500
+    assert run_cli(config, state) == 1
+    assert state.exists()  # seeding worked: the next run is a normal run
+    fake["discord"] = 204
+    fake["posts"].clear()
+    assert run_cli(config, state) == 0
+    assert fake["posts"] == []  # no second welcome, nothing new
+
+
+def test_no_welcome_when_every_source_failed(files, fake):
+    config, state = files
+    fake["board"] = 503
+    assert run_cli(config, state) == 1
+    assert fake["posts"] == []
+
+
+def test_dry_run_sends_no_welcome(files, fake):
+    config, state = files
+    run_cli(config, state, "--dry-run")
+    assert fake["posts"] == []
+
+
+def run_check(config):
+    return cli.main(["check", "--config", str(config)])
+
+
+@pytest.fixture
+def actions(tmp_path, monkeypatch):
+    """Pretend to be GitHub Actions: annotations on, job summary written to a file."""
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    return summary
+
+
+def test_check_previews_matches_and_sends_nothing(files, fake, actions, capsys):
+    config, state = files
+    fake["board"] = TWO_JOBS
+    assert run_check(config) == 0
+    out = capsys.readouterr().out
+    assert "Config OK. Watching 1 company: Acme" in out
+    assert "Top 2 of 2 matching job(s)" in out
+    assert fake["posts"] == []
+    assert not state.exists()
+    summary = actions.read_text(encoding="utf-8")
+    assert "Watching 1 company · 2 matching jobs now" in summary
+    assert "| Acme | 2 | 2 |" in summary
+    assert "[Summer Trainee](https://example.com/1)" in summary
+
+
+def test_check_needs_no_webhook(files, fake, monkeypatch):
+    monkeypatch.delenv(cli.WEBHOOK_ENV)
+    config, _ = files
+    assert run_check(config) == 0
+
+
+def test_check_bad_config_exits_1_with_an_annotation(files, fake, actions, capsys):
+    config, _ = files
+    config.write_text("looking_for: {roles: [ceo]}\ncompanies: [x]\n", encoding="utf-8")
+    assert run_check(config) == 1
+    assert "::error title=Config problem::" in capsys.readouterr().out
+    assert "has a problem" in actions.read_text(encoding="utf-8")
+
+
+def test_check_dead_board_exits_1(files, fake, actions, capsys):
+    config, _ = files
+    fake["board"] = 404
+    assert run_check(config) == 1
+    assert "::error title=Company not reachable::Acme" in capsys.readouterr().out
+    assert "| ❌ Acme | failed | |" in actions.read_text(encoding="utf-8")
+
+
+def test_check_prints_no_annotations_locally(files, fake, capsys, monkeypatch):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    config, _ = files
+    fake["board"] = 404
+    assert run_check(config) == 1
+    assert "::error" not in capsys.readouterr().out

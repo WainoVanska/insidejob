@@ -21,7 +21,7 @@ from collections.abc import Callable
 
 import httpx
 
-from insidejob.format import detail_parts, match_dot, reason_line, score_text
+from insidejob.format import detail_parts, match_dot, plural, reason_line, score_text
 from insidejob.models import Job
 from insidejob.rank import Rank, RankedJob
 
@@ -83,6 +83,18 @@ def new_jobs_header(count: int) -> str:
 
 def top_header(count: int) -> str:
     return f"🏆 **Top {count} job{'s' if count != 1 else ''} right now**"
+
+
+def welcome_header(companies: int, matching: int, shown: int) -> str:
+    """The first run's message: proof that the setup works, before any new job appears."""
+    text = (
+        f"✅ **insidejob is set up!** Watching {plural(companies, 'company', 'companies')}"
+        f" · {plural(matching, 'matching job')} right now."
+        f" New ones arrive here marked {NEW_MARK}."
+    )
+    if shown:
+        text += f"\nThe best {plural(shown, 'match', 'matches')} open now:"
+    return text
 
 
 def build_payloads(items: list[RankedJob], header: str | None = None) -> list[dict]:

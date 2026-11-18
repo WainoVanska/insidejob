@@ -1,0 +1,32 @@
+name: Check config
+
+# Runs whenever config.yaml (or a preset) changes, and on demand. It checks the config,
+# reads every company's job board once and shows the companies, how many jobs match and
+# the top 5 with their scores on the run's Summary page. Problems show up as red errors
+# in plain words. It never sends anything to Discord and never touches the state.
+on:
+  push:
+    paths:
+      - config.yaml
+      - presets/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --locked --no-dev
+
+      - name: Check config.yaml
+        run: uv run --no-sync insidejob check --config config.yaml

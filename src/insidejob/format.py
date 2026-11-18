@@ -46,6 +46,11 @@ def detail_parts(job: Job, *, icons: bool = False, places: tuple[str, ...] = ())
     return parts
 
 
+def plural(count: int, one: str, many: str | None = None) -> str:
+    """plural(1, "company", "companies") -> "1 company"; plural(2, "job") -> "2 jobs"."""
+    return f"{count} {one if count == 1 else many or one + 's'}"
+
+
 def fi_date(day: date) -> str:
     """Finnish date format without zero padding: 15.1.2027."""
     return f"{day.day}.{day.month}.{day.year}"
