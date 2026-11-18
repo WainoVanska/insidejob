@@ -48,6 +48,8 @@ Helsinki · hybrid · internship · start ~Jun 2027 · apply by 15.1.2027 · <ht
 **Config:** the real `config.yaml` is committed (no secrets), plus `config.example.yaml`.
 
 ## PR plan
+Tracked on GitHub as milestones (Phase 1–4) and issues. Each PR references its issue with `Closes #N`. Labels: `research`, `adapter`, `pipeline`, `infra`, `alerts`, `documentation`, `needs-design` (grill before building).
+
 1. Skeleton: pyproject, uv, ruff, pytest, CI workflow, LICENSE, .gitignore
 2. `Job` model + Greenhouse adapter + fixture tests
 3. Config loading + filters
@@ -69,4 +71,4 @@ See `docs/sources.md` (verified 2026-11-18). Greenhouse 9, Teamtailor RSS 5, Wor
 ## Status
 - [x] Phase 1: source research → `docs/sources.md`
 - [x] Design agreed (above)
-- [ ] PR 1 skeleton ← next
+- [ ] PR 1 skeleton (#3) ← next
