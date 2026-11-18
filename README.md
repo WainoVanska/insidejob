@@ -1,14 +1,16 @@
-# insidejob
+# 🔍 insidejob
 
 Checks company job boards every hour and posts new internship, trainee and junior roles to Discord, best matches first.
 
 I built it for my own summer 2027 internship search in Finland.
 
+**It isn't a scraper.** It only reads the official job APIs and feeds that companies publish for their own listings, about one request per company per hour. Job sites like LinkedIn are never touched. [docs/sources.md](docs/sources.md) shows how each source was checked.
+
 ![A Discord alert from insidejob](docs/discord-alert.png)
 
 ## How it works
 
-1. Fetch each company's jobs from the official API or feed of its hiring system (Greenhouse, Ashby, Workable, Teamtailor and WordPress RSS). Job sites like LinkedIn are never scraped: [docs/sources.md](docs/sources.md).
+1. Fetch each company's jobs from the official API or feed of its hiring system (Greenhouse, Ashby, Workable, Teamtailor and WordPress RSS).
 2. Keep jobs whose title and location match `config.yaml`.
 3. Skip jobs already seen, then rank the new ones with a simple points score (title, city, interests, start date, deadline).
 4. Send them to Discord in one message, marked 🆕. A GitHub Action does this hourly on weekdays.
