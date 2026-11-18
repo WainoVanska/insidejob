@@ -1,57 +1,29 @@
 # insidejob
 
-insidejob checks company job boards every hour and sends a Discord message when a new internship, trainee or junior role shows up.
+Checks company job boards every hour and posts new internship, trainee and junior roles to Discord, best matches first.
 
-I built it for my own summer 2027 internship search in Finland. You can point it at your own companies and keywords.
+I built it for my own summer 2027 internship search in Finland.
 
-```
-1 new job
-
-RELEX Solutions – Internal Communications & Employer Branding Trainee
-Helsinki, Finland · ~onsite · ~internship · https://www.relexsolutions.com/careers/jobs/?gh_jid=8014266003
-```
-
-A `~` means insidejob guessed that detail from the job text. The company didn't list it.
+![A Discord alert from insidejob](docs/discord-alert.png)
 
 ## How it works
 
-1. Fetch each company's jobs from the official API or feed of their hiring system: Greenhouse, Ashby, Workday, Workable, or an RSS feed (Teamtailor, WordPress).
-2. Keep the jobs whose title matches your keywords and whose location matches your places.
-3. Compare them with the jobs already seen, which are saved in `seen.json`.
-4. Send the new ones to Discord in one message.
-
-A GitHub Action runs this every hour on weekdays. The list of seen jobs lives on a separate `state` branch.
-
-Job sites like LinkedIn or Duunitori are never scraped. All data comes from public APIs that companies publish for their own job listings. [docs/sources.md](docs/sources.md) lists the sources and how each one was checked.
+1. Fetch each company's jobs from the official API or feed of its hiring system (Greenhouse, Ashby, Workable, Teamtailor and WordPress RSS). Job sites like LinkedIn are never scraped: [docs/sources.md](docs/sources.md).
+2. Keep jobs whose title and location match `config.yaml`.
+3. Skip jobs already seen, then rank the new ones with a simple points score (title, city, interests, start date, deadline).
+4. Send them to Discord in one message. A GitHub Action does this hourly on weekdays.
 
 ## Set it up
 
-1. Fork this repo.
-2. Edit [`config.yaml`](config.yaml) with your companies and keywords. [`config.example.yaml`](config.example.yaml) explains every option.
-3. In Discord, open a channel's settings and go to **Integrations → Webhooks → New Webhook**. Copy the URL.
-4. In your fork, go to **Settings → Secrets and variables → Actions** and add a secret named `DISCORD_WEBHOOK_URL` with that URL.
-5. Create the `state` branch:
+1. Fork the repo and edit [`config.yaml`](config.yaml) ([`config.example.yaml`](config.example.yaml) explains every option).
+2. Create a Discord webhook (channel settings → **Integrations → Webhooks**) and save its URL as the Actions secret `DISCORD_WEBHOOK_URL`.
+3. Create an empty `state` branch, where the seen jobs are stored:
    ```sh
-   git switch --orphan state
-   git commit --allow-empty -m "state: initialize"
-   git push origin state
-   git switch main
+   git switch --orphan state && git commit --allow-empty -m "state: init" && git push origin state && git switch main
    ```
-6. Go to **Actions → Check for new jobs → Run workflow**.
+4. Run **Actions → Check for new jobs → Run workflow**. The first run only records current jobs; after that you get a message whenever something new appears.
 
-The first run only saves the jobs that are already up, so you won't get a flood of old postings. After that you'll get a message whenever something new appears.
-
-## Run it on your computer
-
-You need [uv](https://docs.astral.sh/uv/).
-
-```sh
-uv sync
-uv run insidejob run --dry-run   # show matching jobs, send nothing, save nothing
-uv run pytest                    # run the tests
-```
-
-For a real run, put `DISCORD_WEBHOOK_URL=...` in a `.env` file and run `uv run insidejob run`.
+To try it locally with [uv](https://docs.astral.sh/uv/): `uv sync`, then `uv run insidejob run --dry-run` (prints matches, sends and saves nothing).
 
 ## How it was built
 
