@@ -5,6 +5,7 @@ per board, no pagination. Unlike Greenhouse, Ashby *lists* workplace and employm
 type, so those come through as listed values (not inferred).
 """
 
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
@@ -31,7 +32,9 @@ EMPLOYMENT = {
 }
 
 
-def fetch(client: httpx.Client, board: str) -> dict[str, Any]:
+def fetch(
+    client: httpx.Client, board: str, options: Mapping[str, str] | None = None
+) -> dict[str, Any]:
     response = client.get(API_URL.format(board=board), params={"includeCompensation": "false"})
     response.raise_for_status()
     return response.json()

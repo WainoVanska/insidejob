@@ -6,6 +6,7 @@ the description, departments and offices.
 """
 
 import html
+from collections.abc import Mapping
 from datetime import date, datetime
 from typing import Any
 
@@ -18,7 +19,9 @@ API_URL = "https://boards-api.greenhouse.io/v1/boards/{board}/jobs"
 TYPE = "greenhouse"
 
 
-def fetch(client: httpx.Client, board: str) -> dict[str, Any]:
+def fetch(
+    client: httpx.Client, board: str, options: Mapping[str, str] | None = None
+) -> dict[str, Any]:
     """Download a board's jobs, including descriptions."""
     response = client.get(API_URL.format(board=board), params={"content": "true"})
     response.raise_for_status()

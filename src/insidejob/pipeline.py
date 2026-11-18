@@ -84,7 +84,7 @@ def _run_source(source: Source, state: State, client: httpx.Client, today: date)
     result = SourceResult(source)
     adapter = ADAPTERS[source.type]
     try:
-        raw = adapter.fetch(client, source.board)
+        raw = adapter.fetch(client, source.board, source.options)
         jobs = adapter.parse(raw, source.board, source.company)
     except Exception as exc:  # one broken source must never stop the others
         result.error = f"{type(exc).__name__}: {exc}"
