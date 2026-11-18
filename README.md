@@ -8,8 +8,6 @@ Free, open source, no account. Set up in 5 minutes.
 
 ![A Discord alert from insidejob](docs/discord-alert.png)
 
-It's not a job board: it only watches the companies you list. To browse everything, use [Duunitori](https://duunitori.fi).
-
 ## Setup
 
 You need a GitHub account and a Discord server.
