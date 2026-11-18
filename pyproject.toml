@@ -1,0 +1,38 @@
+[project]
+name = "insidejob"
+version = "0.1.0"
+description = "Alerts on new internship, trainee and junior roles from official company ATS APIs and feeds."
+readme = "README.md"
+authors = [
+    { name = "WainoVanska", email = "207595329+WainoVanska@users.noreply.github.com" }
+]
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "httpx>=0.28.1",
+    "pyyaml>=6.0.3",
+]
+
+[project.scripts]
+insidejob = "insidejob.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.5",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
