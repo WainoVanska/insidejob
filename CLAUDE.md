@@ -90,6 +90,7 @@ See `docs/sources.md` (verified 2026-11-18). Greenhouse 9, Teamtailor RSS 5, Wor
 - Exit codes: 0 ok, 1 a source or the alert failed, 2 bad config/state or no webhook.
 - `--dry-run` prints every matching job tagged seed/NEW/seen, so filters can be checked on a fresh state.
 - Jobs with an empty location pass the location filter.
+- Ranking (2026-11-18, agreed with Wäinö): green ≥ 9, an unknown location scores 2 (all watched companies are Finnish), the AI interest counts from the **title only** (nearly every description repeats "AI" 2–13 times as boilerplate, so counting mentions didn't work), and a job asking for 2+ years of experience gets −2. A real "does this fit me" score is #19.
 
 ## Adapter notes
 - Each adapter: `fetch(client, board, options)` (HTTP) + pure `parse(raw, board, company)`; optional `OPTIONS = {name: required}` validated by config. Register in `adapters/__init__.py`.

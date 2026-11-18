@@ -17,11 +17,13 @@ Shape:
     rank:                         # optional: how new jobs are ordered (defaults: rank.DEFAULT_RANK)
       title: [{points: 3, match: "intern|trainee", label: intern}, ...]
       location: [...]             # same rule shape; first match wins
-      interests: [...]            # best tier wins; half points if only in the description
+      interests: [...]            # best tier wins; half points if only in the description;
+                                  # a rule with `title_only: true` ignores the description
       start: [...]
       unknown_location: 2
       deadline: [{within_days: 14, points: 2}, ...]
       stars: {three: 9, two: 6}
+      experience: {min_years: 2, points: -2}   # asks for 2+ years of experience
 
 All regexes are case-insensitive. Problems raise `ConfigError` with a message that
 points at the offending entry, so a bad config fails fast instead of silently matching
@@ -40,7 +42,7 @@ from insidejob.rank import DEFAULT_RANK, DeadlineRule, RankConfig, Rule
 
 FILTER_KEYS = ("title", "exclude", "location")
 RANK_RULE_KEYS = ("title", "location", "interests", "start")
-RANK_KEYS = (*RANK_RULE_KEYS, "unknown_location", "deadline", "stars")
+RANK_KEYS = (*RANK_RULE_KEYS, "unknown_location", "deadline", "stars", "experience")
 
 
 class ConfigError(ValueError):
@@ -135,6 +137,15 @@ def _rank(value: Any) -> RankConfig:
             parts["three_stars"] = _number(stars["three"], "rank.stars.three")
         if "two" in stars:
             parts["two_stars"] = _number(stars["two"], "rank.stars.two")
+    if "experience" in raw:
+        experience = _mapping(raw["experience"], "rank.experience")
+        if set(experience) - {"min_years", "points"}:
+            raise ConfigError("rank.experience: only `min_years` and `points` are allowed")
+        if "min_years" in experience:
+            years = _number(experience["min_years"], "rank.experience.min_years")
+            parts["experience_years"] = int(years)
+        if "points" in experience:
+            parts["experience_points"] = _number(experience["points"], "rank.experience.points")
 
     return replace(DEFAULT_RANK, **parts)
 
@@ -145,13 +156,19 @@ def _rules(value: Any, where: str) -> tuple[Rule, ...]:
     rules = []
     for i, item in enumerate(value):
         item = _mapping(item, f"{where}[{i}]")
-        if set(item) - {"points", "match", "label"}:
-            raise ConfigError(f"{where}[{i}]: only `points`, `match` and `label` are allowed")
+        if set(item) - {"points", "match", "label", "title_only"}:
+            raise ConfigError(
+                f"{where}[{i}]: only `points`, `match`, `label` and `title_only` are allowed"
+            )
         pattern = _regex(item.get("match"), f"{where}[{i}].match", required=True)
         label = item.get("label", "")
         if not isinstance(label, str):
             raise ConfigError(f"{where}[{i}].label must be a string")
-        rules.append(Rule(_number(item.get("points"), f"{where}[{i}].points"), pattern, label))
+        title_only = item.get("title_only", False)
+        if not isinstance(title_only, bool):
+            raise ConfigError(f"{where}[{i}].title_only must be true or false")
+        points = _number(item.get("points"), f"{where}[{i}].points")
+        rules.append(Rule(points, pattern, label, title_only))
     return tuple(rules)
 
 
