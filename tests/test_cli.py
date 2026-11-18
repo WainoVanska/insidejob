@@ -90,7 +90,9 @@ def test_real_run_seeds_then_alerts(files, fake, capsys):
     assert run_cli(config, state) == 0
     assert "1 new job(s)" in capsys.readouterr().out
     (post,) = fake["posts"]
-    assert "**Acme** – Data Trainee" in post["content"]
+    assert post["content"] == "🔍 **1 new job**"
+    (embed,) = post["embeds"]
+    assert (embed["author"]["name"], embed["title"]) == ("Acme", "Data Trainee")
 
 
 def test_nothing_new_sends_nothing(files, fake):

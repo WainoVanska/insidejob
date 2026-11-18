@@ -36,14 +36,13 @@ Watches company career pages through official ATS APIs and RSS feeds, and alerts
 - IDs missing for 60 days are pruned.
 - A failed source is skipped and its state is left untouched. The run continues and exits non-zero at the end.
 
-**Alerts:** Discord webhook first (`DISCORD_WEBHOOK_URL` secret), behind a `Notifier` interface so Telegram can be added later. One digest per run; nothing is sent when there's nothing new. Split at 2,000 characters. Text with emojis (changed 2026-11-18 at Wäinö's request), best match first, unknown fields left out and inferred values marked with `~`. The dot is the match level (🟢 ≥ `stars.three`, 🟡 ≥ `stars.two`, 🔴 below), the score is out of the best score possible, and each 💡 reason shows its points so they add up to the score:
+**Alerts:** Discord webhook first (`DISCORD_WEBHOOK_URL` secret), behind a `Notifier` interface so Telegram can be added later. One digest per run; nothing is sent when there's nothing new. Changed 2026-11-18 at Wäinö's request: each job is a Discord **embed** (card), best match first, at most 10 embeds / ~6,000 embed characters per message, header `🔍 N new jobs` on the first. The left bar and dot show the match level (🟢 ≥ `stars.three` = 9, 🟡 ≥ `stars.two` = 6, 🔴 below), the score is out of the best possible (13 by default), and each 💡 reason shows its points so they add up to the score. Unknown fields are left out, inferred values marked with `~`, and at most 3 locations are shown, most relevant first:
 ```
-🔍 **8 new jobs**
-
-🟡 **ICEYE** – ICEYE Engineering Intern Lab 2027 · `9.5 / 13`
-📍 Espoo, Finland · 🏢 hybrid · 💼 full-time · 🗓️ ~starts May 2027 · ⏳ apply by 15.1.2027
-🔗 <https://…>
-💡 intern +3 · Espoo +3 · computer vision +1.5 · summer 2027 +2
+┃ ICEYE                                   (author)
+┃ ICEYE Engineering Intern Lab 2027       (title, links to the job)
+┃ 🟢 9.5 / 13
+┃ 📍 Espoo, Finland · 🏢 hybrid · 💼 full-time · 🗓️ ~starts May 2027 · ⏳ apply by 15.1.2027
+┃ 💡 intern +3 · Espoo +3 · computer vision +1.5 · summer 2027 +2
 ```
 
 **Automation:** GitHub Actions cron `0 4-18 * * 1-5` (UTC, about 06–20 Finnish time, weekdays) + `workflow_dispatch`. `concurrency` group so runs never overlap. State lives on an orphan `state` branch, checked out into `state/` and committed as `github-actions[bot]` only when it changed (`permissions: contents: write`). CI runs ruff + pytest on every PR. Tests never touch the network.
