@@ -2,7 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from insidejob.config import ConfigError, load_config, parse_config
+from insidejob.config import ConfigError, _rank, load_config, parse_config
+from insidejob.rank import DEFAULT_RANK
 
 ROOT = Path(__file__).parent.parent
 
@@ -15,16 +16,66 @@ def minimal(**overrides):
     return data | overrides
 
 
-def test_loads_repo_config():
+def test_loads_starter_config_with_neutral_ranking():
     config = load_config(ROOT / "config.yaml")
-    assert len(config.sources) >= 9
+    assert len(config.sources) >= 5
     known = {"greenhouse", "rss", "ashby", "workday", "workable"}
     assert {source.type for source in config.sources} <= known
+    assert config.rank == DEFAULT_RANK  # no personal preferences in the starter
 
 
 def test_loads_example_config():
     config = load_config(ROOT / "config.example.yaml")
-    assert [s.board for s in config.sources] == ["relex", "wolt"]
+    assert [s.board for s in config.sources][:2] == ["wolt", "supercell"]
+    assert config.sources[-1].filters.location.pattern == "helsinki"  # per-source override
+    assert config.rank.interests[1].title_only  # AI: title only
+    assert (config.rank.green_at, config.rank.yellow_at) == (0.65, 0.4)
+
+
+def test_words_match_whole_words_in_any_case():
+    (rule,) = _rank(
+        {"location": [{"points": 3, "words": ["Helsinki", "C++", "entry level"]}]}
+    ).location
+    assert rule.match.search("HELSINKI, Finland")
+    assert rule.match.search("Senior C++ dev")
+    assert rule.match.search("Entry  Level role")
+    assert not rule.match.search("Helsinkiläinen")
+
+
+def test_ai_word_does_not_match_inside_other_words():
+    (rule,) = _rank({"interests": [{"points": 3, "words": ["AI"]}]}).interests
+    assert rule.match.search("AI engineer")
+    assert not rule.match.search("maintain the platform")
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        {"points": 3},  # neither words nor match
+        {"points": 3, "words": ["a"], "match": "a"},  # both
+        {"points": 3, "words": []},
+        {"points": 3, "words": [1, 2]},
+    ],
+)
+def test_rule_needs_exactly_one_of_words_or_match(rule):
+    with pytest.raises(ConfigError):
+        _rank({"location": [rule]})
+
+
+def test_levels_are_shares_of_the_best_score():
+    config = _rank({"levels": {"green": 0.8, "yellow": 0.5}})
+    assert (config.green_at, config.yellow_at) == (0.8, 0.5)
+
+
+@pytest.mark.parametrize("levels", [{"green": 0.3, "yellow": 0.5}, {"green": 9}, {"blue": 1}])
+def test_bad_levels_fail(levels):
+    with pytest.raises(ConfigError):
+        _rank({"levels": levels})
+
+
+def test_old_stars_key_explains_the_new_one():
+    with pytest.raises(ConfigError, match="levels"):
+        _rank({"stars": {"three": 9, "two": 6}})
 
 
 def test_source_key_matches_job_source():

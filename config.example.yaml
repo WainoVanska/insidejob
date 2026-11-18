@@ -1,36 +1,96 @@
-# Example insidejob config. Copy to config.yaml and edit.
+# Full reference for config.yaml: every option, with an example search for internships
+# in the Helsinki area. Copy what you need into config.yaml.
 #
-# filters: global defaults (regexes, case-insensitive)
+# Check your changes without sending anything:  uv run insidejob run --dry-run
+# (on a fresh state it prints every matching job with its score).
+
+# ── filters: which jobs count at all ───────────────────────────────────────────────
+# Regexes, case-insensitive. Single quotes keep backslashes literal in YAML.
 #   title     required  the job title must match
 #   exclude   optional  the job title must NOT match
 #   location  optional  the location must match (jobs with an empty location pass)
-#
-# sources: one entry per job board
+filters:
+  # \b = word boundary, so "intern" doesn't match "Internal" or "International".
+  # The Finnish words catch kesätyö, harjoittelija, opinnäytetyö and diplomityö.
+  title: '\b(interns?|internships?|trainees?|summer|thesis|graduates?|junior|entry[- ]level|working student)\b|kesä|harjoittel|opinnäyte|diplomityö'
+  exclude: '\b(senior|sr|lead|principal|staff|director|manager|head of)\b'
+  # "Remote" alone isn't listed, so "Remote - United States" stays out.
+  location: 'helsinki|espoo|vantaa|finland|\b(eu|europe|emea)\b'
+
+# ── sources: one entry per company job board ──────────────────────────────────────
 #   company   name shown in alerts
-#   type      adapter: greenhouse, ashby, workday, workable or rss
-#   board     where the jobs are:
-#               greenhouse  board token from boards.greenhouse.io/<board>
-#               ashby       board name from jobs.ashbyhq.com/<board>
-#               workday     career site URL without https://, e.g. acme.wd3.myworkdayjobs.com/Careers
-#               workable    account from apply.workable.com/<board>
-#               rss         feed URL without https://, e.g. acme.teamtailor.com/jobs.rss
+#   type      the company's hiring system (look at the links on its careers page):
+#               greenhouse  boards.greenhouse.io/<board> or job-boards.greenhouse.io/<board>
+#               ashby       jobs.ashbyhq.com/<board>
+#               workable    apply.workable.com/<board>
+#               rss         a job feed, e.g. <company>.teamtailor.com/jobs.rss
+#               workday     <company>.wd3.myworkdayjobs.com/<site> (blocked on GitHub
+#                           Actions by Workday's bot protection: local runs only)
+#   board     the <board> part above; for rss and workday the URL without https://
 #   options   adapter settings; workday needs `facet`: a location name from the site's
 #             filters (e.g. Finland), so only those jobs are fetched
 #   filters   optional; each key given here REPLACES the global one for this source
-
-filters:
-  title: '\b(interns?|internships?|trainees?|summer|graduates?|junior)\b'
-  exclude: '\b(senior|lead|principal|staff|director|manager|head of)\b'
-  location: 'helsinki|espoo|finland|\b(eu|europe|emea)\b'
-
 sources:
-  - company: RELEX Solutions
-    type: greenhouse
-    board: relex
+  - { company: Wolt, type: greenhouse, board: wolt }
+  - { company: Supercell, type: ashby, board: supercell }
+  - { company: Nitor, type: workable, board: nitor }
+  - { company: Futurice, type: rss, board: careers.futurice.com/jobs.rss }
 
-  - company: Wolt
+  - company: Example Corp
     type: greenhouse
-    board: wolt
+    board: examplecorp
     filters:
-      # Wolt posts many city-specific roles; only watch Helsinki here.
+      # This company posts in many cities: only watch Helsinki here.
       location: 'helsinki'
+
+  # - company: Example Workday company
+  #   type: workday
+  #   board: example.wd3.myworkdayjobs.com/Careers
+  #   options: { facet: Finland }
+
+# ── rank: optional, how jobs are ordered and coloured ─────────────────────────────
+# Without `rank:`, jobs are scored only on how junior the title is, how close the
+# deadline is, and whether they ask for 2+ years of experience. Add your own taste here.
+#
+# Each list is rules: {points, words, label}. `words` match whole words, any case
+# (a space matches any whitespace); use `match: '<regex>'` instead for more control.
+# The first matching rule wins, except for interests, where the best one wins.
+# Every key you give REPLACES that part of the defaults.
+rank:
+  # Default: intern/trainee/summer 3, junior/entry-level 2, graduate 1.
+  title:
+    - { points: 3, label: intern, words: [intern, interns, internship, trainee, traineeship, summer, thesis, working student] }
+    - { points: 2, label: junior, words: [junior, entry level, entry-level] }
+    - { points: 1, label: graduate, words: [graduate, graduates] }
+
+  # The label is the matched place when not given (e.g. "Espoo +3").
+  location:
+    - { points: 3, words: [Helsinki, Espoo, Vantaa] }
+    - { points: 2, words: [Finland] }
+    - { points: 1, words: [remote, EU, Europe, EMEA] }
+  # Points for a job without a location (default 0).
+  unknown_location: 2
+
+  # Full points when found in the title, half when only in the description.
+  # `title_only: true` ignores the description: for words like "AI" that company
+  # boilerplate repeats in nearly every job ad.
+  interests:
+    - { points: 3, label: graphics, words: [graphics, rendering, OpenGL, Vulkan, shaders, GPU, 3D, computer vision] }
+    - { points: 3, label: AI, title_only: true, words: [AI, LLM, LLMs, agents, machine learning] }
+    - { points: 2, label: apps & games, words: [games, game, Unity, frontend, front-end, React, mobile, web] }
+    - { points: 1, label: software, words: [software, developer, engineer, C++, Python, backend] }
+
+  start:
+    - { points: 2, label: summer 2027, words: [summer 2027, May 2027, June 2027, July 2027] }
+
+  # Days before the deadline → points (default as below).
+  deadline:
+    - { within_days: 14, points: 2 }
+    - { within_days: 30, points: 1 }
+
+  # Asking for this many years of experience or more → points (default as below).
+  experience: { min_years: 2, points: -2 }
+
+  # Colours, as a share of the best score possible (here 3+3+3+2+2 = 13):
+  # green from 65 %, yellow from 40 %, red below (default as below).
+  levels: { green: 0.65, yellow: 0.4 }

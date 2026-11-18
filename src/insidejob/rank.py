@@ -1,17 +1,21 @@
 """Order new jobs best first with a simple, explainable points score.
 
 Ranking never hides anything: the filters decide what is relevant, ranking only decides
-the order and adds a match level (1-3) plus a "why" line where each reason shows its
-points, so the reasons add up to the score. Every signal is a list of rules, and
-the first rule that matches wins (except interests, where the best-scoring tier wins).
-All of it can be tuned in `config.yaml` under `rank:`; `DEFAULT_RANK` is used otherwise.
+the order and adds a match level (green / yellow / red) plus a "why" line where each
+reason shows its points, so the reasons add up to the score. Every signal is a list of
+rules, and the first rule that matches wins (except interests, where the best-scoring
+tier wins). The match level compares the score with the best score possible.
+
+`DEFAULT_RANK` is deliberately neutral, so it suits anyone: it only knows how junior a
+title is, how close the deadline is, and whether the job asks for years of experience.
+Personal preferences (cities, interests, start date) go in `config.yaml` under `rank:`.
 
     title      intern/trainee/summer > junior > graduate
-    location   capital region > rest of Finland > remote/EU (unknown location gets its own value)
-    interests  best tier found; half points if it's only in the description, not the title.
-               The AI tier counts from the title only: nearly every description repeats
-               "AI" as company boilerplate, so it said nothing about the job itself.
-    start      e.g. "summer 2027"
+    location   e.g. your city > your country > remote (none by default)
+    interests  best tier found; half points if it's only in the description, not the title
+               (`title_only` rules ignore the description: useful for words like "AI"
+               that company boilerplate repeats everywhere)
+    start      e.g. "summer 2027" (none by default)
     deadline   closer deadline = more points
     experience minus points if the text asks for 2+ years of experience
 """
@@ -25,6 +29,17 @@ from insidejob.models import Job
 
 def _rx(pattern: str) -> re.Pattern[str]:
     return re.compile(pattern, re.IGNORECASE)
+
+
+def words_pattern(words: list[str]) -> re.Pattern[str]:
+    """Match any of `words` as whole words, case-insensitively: no regex knowledge needed.
+
+    "AI" doesn't match "maintain", "C++" and "Node.js" work, and a space matches any
+    whitespace. Longer words are tried first, so "game engine" wins over "game".
+    """
+    parts = [re.escape(w.strip()).replace(r"\ ", r"\s+") for w in words if w.strip()]
+    parts.sort(key=len, reverse=True)
+    return _rx(r"(?<!\w)(?:" + "|".join(parts) + r")(?!\w)")
 
 
 @dataclass(frozen=True)
@@ -54,8 +69,11 @@ class RankConfig:
     interests: tuple[Rule, ...]
     start: tuple[Rule, ...]
     deadline: tuple[DeadlineRule, ...]
-    three_stars: float = 9
-    two_stars: float = 6
+    # Match level as a share of the best score possible (max_score): green at 65 % or
+    # more, yellow at 40 % or more, red below. Relative, so it still fits when rules
+    # are added or removed.
+    green_at: float = 0.65
+    yellow_at: float = 0.4
     # A job asking for this many years of experience or more gets `experience_points`.
     experience_years: int = 2
     experience_points: float = -2
@@ -77,66 +95,25 @@ class RankedJob:
     fresh: bool = False  # shown with 🆕: new this run, or first seen recently (`top`)
 
 
-# "C++" can't use \b (it ends in non-word characters), so it gets a lookbehind instead.
-_INTEREST_SOFTWARE = (
-    r"(?<!\w)c\+\+"
-    r"|\b(software|developers?|engineers?|python|scala|backend|full-?stack|embedded|systems?)\b"
-)
-
+# Neutral on purpose: anyone can use these. Add your cities, interests and start date
+# under `rank:` in config.yaml (see config.example.yaml).
 DEFAULT_RANK = RankConfig(
     title=(
         Rule(
             3,
             _rx(
-                r"\b(interns?|internships?|trainees?|traineeship|summer|thesis|launchpad)\b"
+                r"\b(interns?|internships?|trainees?|traineeship|summer|thesis|working student)\b"
                 r"|kesä|harjoittel|opinnäyte|diplomityö"
             ),
             "intern",
         ),
-        Rule(2, _rx(r"\bjunior\b"), "junior"),
+        Rule(2, _rx(r"\b(junior|entry[- ]level)\b"), "junior"),
         Rule(1, _rx(r"\bgraduates?\b"), "graduate"),
     ),
-    location=(
-        Rule(3, _rx(r"helsinki|espoo|vantaa")),
-        Rule(2, _rx(r"finland|suomi")),
-        Rule(1, _rx(r"\bremote\b|\b(eu|europe|emea)\b")),
-    ),
-    # Every watched company is Finnish, so a job without a location is most likely in
-    # Finland: score it like "rest of Finland" rather than like remote.
-    unknown_location=2,
-    interests=(
-        Rule(
-            3,
-            _rx(
-                r"\b(graphics|rendering|renderer|opengl|vulkan|directx|shaders?|glsl|gpus?|cuda"
-                r"|game engines?|3d|real-time|xr|vr|ar|mixed reality|computer vision)\b"
-            ),
-            "graphics",
-        ),
-        Rule(
-            3,
-            _rx(
-                r"\b(llms?|agents?|agentic|ai|genai|generative|automation|mcp|prompt\w*|ai tools)\b"
-            ),
-            "AI",
-            title_only=True,
-        ),
-        Rule(
-            2,
-            _rx(
-                r"\b(games?|gameplay|unity|unreal|ui|ux|front-?end|react|typescript|web|mobile"
-                r"|apps?)\b"
-            ),
-            "apps & games",
-        ),
-        Rule(1, _rx(_INTEREST_SOFTWARE), "software"),
-        Rule(
-            0,
-            _rx(r"\b(data|analytics|machine learning|ml|cloud|devops|platform|infrastructure)\b"),
-            "data & cloud",
-        ),
-    ),
-    start=(Rule(2, _rx(r"summer 2027|kesä 2027|\b(may|jun|jul|aug)\w* 2027"), "summer 2027"),),
+    location=(),
+    unknown_location=0,
+    interests=(),
+    start=(),
     deadline=(DeadlineRule(14, 2), DeadlineRule(30, 1)),
 )
 
@@ -282,9 +259,12 @@ def _unique(words: list[str]) -> list[str]:
 
 
 def _stars(points: float, config: RankConfig) -> int:
-    if points >= config.three_stars:
+    """Match level from the share of the best score possible: 3 green, 2 yellow, 1 red."""
+    best = max_score(config)
+    share = points / best if best > 0 else 0
+    if share >= config.green_at:
         return 3
-    if points >= config.two_stars:
+    if share >= config.yellow_at:
         return 2
     return 1
 

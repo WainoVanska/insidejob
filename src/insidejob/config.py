@@ -15,15 +15,17 @@ Shape:
         options:                  # optional: adapter-specific settings (see each adapter's OPTIONS)
           facet: Finland
     rank:                         # optional: how new jobs are ordered (defaults: rank.DEFAULT_RANK)
-      title: [{points: 3, match: "intern|trainee", label: intern}, ...]
-      location: [...]             # same rule shape; first match wins
+      title: [{points: 3, words: [intern, trainee], label: intern}, ...]
+      location: [{points: 3, words: [Helsinki, Espoo]}, ...]   # first match wins
       interests: [...]            # best tier wins; half points if only in the description;
                                   # a rule with `title_only: true` ignores the description
-      start: [...]
-      unknown_location: 2
+      start: [{points: 2, words: [summer 2027], label: summer 2027}]
+      unknown_location: 0
       deadline: [{within_days: 14, points: 2}, ...]
-      stars: {three: 9, two: 6}
+      levels: {green: 0.65, yellow: 0.4}       # share of the best score possible
       experience: {min_years: 2, points: -2}   # asks for 2+ years of experience
+
+A rule matches with `words` (a list, whole words, no regex needed) or `match` (a regex).
 
 All regexes are case-insensitive. Problems raise `ConfigError` with a message that
 points at the offending entry, so a bad config fails fast instead of silently matching
@@ -38,11 +40,11 @@ from typing import Any
 import yaml
 
 from insidejob.adapters import ADAPTERS
-from insidejob.rank import DEFAULT_RANK, DeadlineRule, RankConfig, Rule
+from insidejob.rank import DEFAULT_RANK, DeadlineRule, RankConfig, Rule, words_pattern
 
 FILTER_KEYS = ("title", "exclude", "location")
 RANK_RULE_KEYS = ("title", "location", "interests", "start")
-RANK_KEYS = (*RANK_RULE_KEYS, "unknown_location", "deadline", "stars", "experience")
+RANK_KEYS = (*RANK_RULE_KEYS, "unknown_location", "deadline", "levels", "experience")
 
 
 class ConfigError(ValueError):
@@ -115,6 +117,11 @@ def parse_config(data: Any) -> Config:
 def _rank(value: Any) -> RankConfig:
     """`rank:` is optional; each key given replaces that part of DEFAULT_RANK."""
     raw = _mapping(value, "rank")
+    if "stars" in raw:
+        raise ConfigError(
+            "rank.stars was replaced by rank.levels: {green: 0.65, yellow: 0.4}, "
+            "the share of the best score possible (e.g. 9 of 13 points = 0.69)"
+        )
     unknown = set(raw) - set(RANK_KEYS)
     if unknown:
         raise ConfigError(
@@ -129,14 +136,18 @@ def _rank(value: Any) -> RankConfig:
         parts["unknown_location"] = _number(raw["unknown_location"], "rank.unknown_location")
     if "deadline" in raw:
         parts["deadline"] = _deadlines(raw["deadline"], "rank.deadline")
-    if "stars" in raw:
-        stars = _mapping(raw["stars"], "rank.stars")
-        if set(stars) - {"three", "two"}:
-            raise ConfigError("rank.stars: only `three` and `two` thresholds are allowed")
-        if "three" in stars:
-            parts["three_stars"] = _number(stars["three"], "rank.stars.three")
-        if "two" in stars:
-            parts["two_stars"] = _number(stars["two"], "rank.stars.two")
+    if "levels" in raw:
+        levels = _mapping(raw["levels"], "rank.levels")
+        if set(levels) - {"green", "yellow"}:
+            raise ConfigError("rank.levels: only `green` and `yellow` are allowed")
+        green = _number(levels.get("green", DEFAULT_RANK.green_at), "rank.levels.green")
+        yellow = _number(levels.get("yellow", DEFAULT_RANK.yellow_at), "rank.levels.yellow")
+        if not 0 <= yellow <= green <= 1:
+            raise ConfigError(
+                "rank.levels: need 0 <= yellow <= green <= 1 "
+                "(shares of the best score possible, e.g. green: 0.65)"
+            )
+        parts["green_at"], parts["yellow_at"] = green, yellow
     if "experience" in raw:
         experience = _mapping(raw["experience"], "rank.experience")
         if set(experience) - {"min_years", "points"}:
@@ -152,15 +163,16 @@ def _rank(value: Any) -> RankConfig:
 
 def _rules(value: Any, where: str) -> tuple[Rule, ...]:
     if not isinstance(value, list):
-        raise ConfigError(f"{where} must be a list of {{points, match, label}}")
+        raise ConfigError(f"{where} must be a list of {{points, words, label}}")
     rules = []
     for i, item in enumerate(value):
         item = _mapping(item, f"{where}[{i}]")
-        if set(item) - {"points", "match", "label", "title_only"}:
+        if set(item) - {"points", "words", "match", "label", "title_only"}:
             raise ConfigError(
-                f"{where}[{i}]: only `points`, `match`, `label` and `title_only` are allowed"
+                f"{where}[{i}]: only `points`, `words`, `match`, `label` and `title_only`"
+                " are allowed"
             )
-        pattern = _regex(item.get("match"), f"{where}[{i}].match", required=True)
+        pattern = _rule_pattern(item, f"{where}[{i}]")
         label = item.get("label", "")
         if not isinstance(label, str):
             raise ConfigError(f"{where}[{i}].label must be a string")
@@ -170,6 +182,22 @@ def _rules(value: Any, where: str) -> tuple[Rule, ...]:
         points = _number(item.get("points"), f"{where}[{i}].points")
         rules.append(Rule(points, pattern, label, title_only))
     return tuple(rules)
+
+
+def _rule_pattern(item: dict[str, Any], where: str) -> re.Pattern[str]:
+    """A rule matches with `words` (plain list) or `match` (regex): exactly one of them."""
+    if ("words" in item) == ("match" in item):
+        raise ConfigError(f"{where}: give either `words` (a list) or `match` (a regex)")
+    if "match" in item:
+        return _regex(item["match"], f"{where}.match", required=True)
+    words = item["words"]
+    if isinstance(words, str):
+        words = [words]
+    if not isinstance(words, list) or not words or not all(isinstance(w, str) for w in words):
+        raise ConfigError(f"{where}.words must be a list of words, e.g. [Helsinki, Espoo]")
+    if not any(w.strip() for w in words):
+        raise ConfigError(f"{where}.words is empty")
+    return words_pattern(words)
 
 
 def _deadlines(value: Any, where: str) -> tuple[DeadlineRule, ...]:

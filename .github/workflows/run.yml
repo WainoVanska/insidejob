@@ -16,7 +16,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # A fresh copy of the template has no webhook yet: skip quietly instead of failing
+  # every hour. Secrets can't be used in a job's `if:`, hence this tiny job.
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::DISCORD_WEBHOOK_URL secret not set, skipping. See README: Use it yourself."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
   run:
+    needs: setup
+    if: needs.setup.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
