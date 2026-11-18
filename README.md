@@ -1,43 +1,83 @@
 # 🔍 insidejob
 
-Watches the job boards of the companies you'd like to work for and posts new internship, trainee and junior roles to Discord, best matches first.
+[![CI](https://github.com/WainoVanska/insidejob/actions/workflows/ci.yml/badge.svg)](https://github.com/WainoVanska/insidejob/actions/workflows/ci.yml)
 
-**It isn't a scraper.** It only reads the official job APIs and feeds that companies publish for their own listings, about one request per company per hour. Job sites like LinkedIn are never touched. [docs/sources.md](docs/sources.md) shows how each source was checked.
+Follow the companies you'd love to work at. insidejob checks their own hiring systems every hour and posts new internships and early-career jobs to your Discord, ranked for you, with the reasons.
+
+Free, open source, no account. Set up in 5 minutes, all in the browser.
 
 ![A Discord alert from insidejob](docs/discord-alert.png)
 
-## How it works
+## Why
 
-1. Fetch each company's jobs from the official API or feed of its hiring system (Greenhouse, Ashby, Workable, Teamtailor and WordPress RSS).
-2. Keep jobs whose title and location match your `config.yaml`.
-3. Skip jobs already seen, then rank the new ones with a simple points score: how junior the title is, the deadline, and optionally your cities, interests and start date.
-4. Send them to Discord in one message, marked 🆕. A GitHub Action does this hourly on weekdays.
+- **Straight from the source.** Jobs come from the company's own hiring system (Greenhouse, Ashby, Workable, Teamtailor, job feeds), often before they reach any job board, and some never do.
+- **Your list, not a keyword search.** You pick the companies, so there's no noise from hundreds of employers you don't care about.
+- **Ranked for you.** Each job gets a score and a 🟢🟡🔴 colour, with the reasons: `💡 intern +3 · Espoo +3 · graphics +3 · summer 2027 +2`. Senior roles are left out, and jobs asking for years of experience rank lower.
+- **Yours.** It runs in your own GitHub copy. Your preferences and job history stay there; there are no ads and no tracking.
+
+**Not a job board.** insidejob only watches the companies you list. To browse everything that's out there, use a job board like [Duunitori](https://duunitori.fi).
+
+## Set up in 5 minutes
+
+You need a GitHub account and a Discord server (your own private one is fine).
+
+1. **Copy this repo:** click **Use this template → Create a new repository**. Private is fine.
+2. **Connect Discord:** in your Discord channel open **Edit channel → Integrations → Webhooks → New Webhook → Copy Webhook URL**. In your new repo open **Settings → Secrets and variables → Actions → New repository secret**, name it `DISCORD_WEBHOOK_URL` and paste the URL.
+3. **Say what you're looking for:** open [`config.yaml`](config.yaml) in your repo, click the pencil icon and fill in `looking_for` (roles, cities, interests, start date) and `companies`: paste the link of any job ad from each company's careers page. Click **Commit changes**.
+   The **Check config** action then runs by itself. Open **Actions → Check config → the latest run** to see your companies, how many jobs match and your top 5 with their scores. If something is wrong, it says what in plain words.
+4. **Start it:** open **Actions → Check for new jobs → Run workflow**. You get a welcome message in Discord with the best matches open right now. From then on it checks every hour on weekdays and posts only new jobs, marked 🆕.
 
 Want the best jobs open right now, new or not? Run **Actions → Top jobs** and pick 3, 5, 10 or 25.
 
-## Use it yourself
+### Let AI fill it in
 
-1. **Fork** this repo (public; updates with one click), or click **Use this template → Create a new repository** for a private copy.
-2. Edit [`config.yaml`](config.yaml): list your companies and adjust the filters. To find a company's board, open its careers page and look at where the job links go:
+Paste this into any AI chat (ChatGPT, Claude, Gemini…) together with your CV, and copy the answer into `config.yaml`. Your CV stays in that chat: insidejob never stores it.
 
-   | Link looks like | Config line |
-   |---|---|
-   | `job-boards.greenhouse.io/acme` | `{ company: Acme, type: greenhouse, board: acme }` |
-   | `jobs.ashbyhq.com/acme` | `{ company: Acme, type: ashby, board: acme }` |
-   | `apply.workable.com/acme` | `{ company: Acme, type: workable, board: acme }` |
-   | `acme.teamtailor.com/jobs` | `{ company: Acme, type: rss, board: acme.teamtailor.com/jobs.rss }` |
+```text
+From my CV below, write a YAML block for my job alert tool. Use exactly this shape and
+only these keys, and answer with the YAML only:
 
-   For ranking by your cities, interests and start date, copy the `rank:` section from [`config.example.yaml`](config.example.yaml), which explains every option.
-3. Create a Discord webhook (channel settings → **Integrations → Webhooks**) and save its URL as the Actions secret `DISCORD_WEBHOOK_URL`.
-4. Create an empty `state` branch, where the seen jobs are stored:
-   ```sh
-   git switch --orphan state && git commit --allow-empty -m "state: init" && git push origin state && git switch main
-   ```
-5. Run **Actions → Check for new jobs → Run workflow**. The first run only records the jobs already up, so you aren't flooded with old postings. After that you get a message whenever something new appears.
+looking_for:
+  roles: [intern, thesis, junior, graduate]   # keep only the ones that fit me
+  cities: [...]                                # where I live or want to work
+  country: ...                                 # e.g. Finland
+  remote: true                                 # true, false, or anywhere
+  interests: [...]                             # 3-6 short words, e.g. graphics, AI, games,
+                                               # web, mobile, backend, data, cloud, design,
+                                               # marketing, sales, finance, or a technology
+  start: ...                                   # e.g. summer 2027, or leave the line out
 
-Check your filters before going live with [uv](https://docs.astral.sh/uv/): `uv sync`, then `uv run insidejob run --dry-run` prints every matching job with its score and sends nothing.
+My CV:
+<paste your CV here>
+```
 
-Getting later improvements: a fork has a **Sync fork** button on GitHub. A template copy starts with its own history, so the first update needs one extra flag (keep your `config.yaml` if Git asks):
+### What the settings do
+
+| Setting | What it does |
+|---|---|
+| `roles` | Which jobs count: `intern` (also trainee, summer job), `thesis`, `junior`, `graduate`. Senior, lead and manager roles are always left out. |
+| `cities`, `country`, `remote` | Which locations pass, and the ranking: a city +3, the country +2, remote +1. |
+| `interests` | +3 when in the title, +1.5 when only in the description. Built-in groups know the related words (`graphics` → rendering, Vulkan, shaders…). |
+| `start` | +2 when the job starts then (`summer 2027` also matches kesä 2027 and May–August). |
+
+The closer the deadline, the more points, and asking for 2+ years of experience costs 2. [`config.example.yaml`](config.example.yaml) explains every option, including exact regex filters and ranking rules for fine-tuning.
+
+## How it works
+
+1. Fetch each company's jobs from the official API or feed of its hiring system, about one request per company per hour.
+2. Keep jobs whose title and location match what you're looking for.
+3. Skip jobs already seen (stored on a `state` branch in your repo), then rank the new ones.
+4. Send them to Discord in one message. A GitHub Action does this hourly on weekdays.
+
+**It isn't a scraper.** It only reads the official job APIs and feeds that companies publish for their own listings. Job sites like LinkedIn are never touched. [docs/sources.md](docs/sources.md) shows how each source was checked.
+
+## Advanced
+
+**Run it on your own computer** with [uv](https://docs.astral.sh/uv/): `uv sync`, then `uv run insidejob check` (preview), `uv run insidejob run --dry-run` (every match with its score; nothing sent) or `uv run insidejob run` (with `DISCORD_WEBHOOK_URL` in a `.env` file).
+
+**Fork instead of template** if you want to contribute back or follow every change: a fork has a **Sync fork** button, but forks are public and their scheduled Actions must be enabled by hand.
+
+**Getting later improvements into a template copy:** it starts with its own history, so the first update needs one extra flag (keep your `config.yaml` if Git asks):
 ```sh
 git remote add upstream https://github.com/WainoVanska/insidejob.git
 git pull upstream main --allow-unrelated-histories

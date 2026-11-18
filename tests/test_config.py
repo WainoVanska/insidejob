@@ -16,17 +16,19 @@ def minimal(**overrides):
     return data | overrides
 
 
-def test_loads_starter_config_with_neutral_ranking():
+def test_loads_starter_config_from_looking_for_and_links():
     config = load_config(ROOT / "config.yaml")
     assert len(config.sources) >= 5
-    known = {"greenhouse", "rss", "ashby", "workday", "workable"}
-    assert {source.type for source in config.sources} <= known
-    assert config.rank == DEFAULT_RANK  # no personal preferences in the starter
+    assert {source.type for source in config.sources} <= {"greenhouse", "rss", "ashby", "workable"}
+    assert ("ICEYE", "ashby:iceye") in [(s.company, s.key) for s in config.sources]
+    assert config.rank.location  # generated from cities/country/remote
+    assert config.rank.deadline == DEFAULT_RANK.deadline
 
 
 def test_loads_example_config():
     config = load_config(ROOT / "config.example.yaml")
     assert [s.board for s in config.sources][:2] == ["wolt", "supercell"]
+    assert [s.company for s in config.sources][2:4] == ["Nitor", "Futurice"]
     assert config.sources[-1].filters.location.pattern == "helsinki"  # per-source override
     assert config.rank.interests[1].title_only  # AI: title only
     assert (config.rank.green_at, config.rank.yellow_at) == (0.65, 0.4)
@@ -113,25 +115,16 @@ def test_optional_filters_may_be_omitted():
     ("data", "message"),
     [
         ([], "must be a mapping"),
-        (minimal(filters={}), "filters.title is required"),
+        (minimal(filters={}), "looking_for"),
         (minimal(filters={"title": "("}), "invalid regex"),
         (minimal(filters={"title": "x", "salary": "1"}), "unknown filter key"),
-        (minimal(sources=[]), "non-empty list"),
+        (minimal(sources=[]), "add the companies"),
         (minimal(sources=[{"company": "A", "type": "greenhouse"}]), "`board` is required"),
         (minimal(sources=[{"type": "greenhouse", "board": "a"}]), "`company` is required"),
         (minimal(sources=[{"company": "A", "type": "taleo", "board": "a"}]), "unknown type"),
         (
             minimal(sources=[{"company": "A", "type": "greenhouse", "board": "a", "filters": 3}]),
             "must be a mapping",
-        ),
-        (
-            minimal(
-                sources=[
-                    {"company": "A", "type": "greenhouse", "board": "a"},
-                    {"company": "B", "type": "greenhouse", "board": "a"},
-                ]
-            ),
-            "duplicate source greenhouse:a",
         ),
     ],
 )
@@ -187,3 +180,47 @@ def test_invalid_yaml(tmp_path):
     path.write_text("filters: [unclosed", encoding="utf-8")
     with pytest.raises(ConfigError, match="not valid YAML"):
         load_config(path)
+
+
+def companies(*entries):
+    return parse_config({"filters": {"title": "intern"}, "companies": list(entries)})
+
+
+def test_companies_accept_links_names_and_full_entries():
+    cfg = companies(
+        "https://jobs.ashbyhq.com/iceye",
+        "Small Giant: https://job-boards.greenhouse.io/sggcareers",
+        {"Futurice": "https://careers.futurice.com/jobs.rss"},
+        {"company": "Nitor", "type": "workable", "board": "nitor"},
+    )
+    assert [(s.company, s.key) for s in cfg.sources] == [
+        ("Iceye", "ashby:iceye"),
+        ("Small Giant", "greenhouse:sggcareers"),
+        ("Futurice", "rss:careers.futurice.com/jobs.rss"),
+        ("Nitor", "workable:nitor"),
+    ]
+    assert all(s.filters.title.pattern == "intern" for s in cfg.sources)
+
+
+def test_companies_and_sources_combine():
+    data = minimal(companies=["https://jobs.ashbyhq.com/iceye"])
+    assert [s.key for s in parse_config(data).sources] == ["ashby:iceye", "greenhouse:relex"]
+
+
+def test_the_same_board_twice_is_watched_once():
+    cfg = companies(
+        "ICEYE: https://jobs.ashbyhq.com/iceye",
+        "https://jobs.ashbyhq.com/iceye/123",
+        {"company": "Other name", "type": "ashby", "board": "iceye"},
+    )
+    assert [(s.company, s.key) for s in cfg.sources] == [("ICEYE", "ashby:iceye")]
+
+
+def test_bad_company_link_names_the_entry():
+    with pytest.raises(ConfigError, match=r"companies\[1\]: .*isn't a supported job site"):
+        companies("https://jobs.ashbyhq.com/iceye", "https://www.linkedin.com/jobs/view/1")
+
+
+def test_companies_must_be_a_list():
+    with pytest.raises(ConfigError, match="companies must be a list"):
+        parse_config({"filters": {"title": "x"}, "companies": "https://jobs.ashbyhq.com/a"})

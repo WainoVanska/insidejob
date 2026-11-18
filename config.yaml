@@ -1,25 +1,36 @@
-# Your insidejob config: which job boards to watch and which jobs to alert on.
+# Your insidejob settings. Edit them right here on GitHub (the pencil icon), then
+# "Commit changes". The "Check config" action then shows the companies, how many jobs
+# match and your top 5, under Actions → Check config → Summary. Nothing is sent.
 #
-# This is a working starter (a few tech companies in Finland). Replace the companies and
-# filters with your own. config.example.yaml explains every option, including `rank:`
-# for your cities, interests and start date. Check changes with:
-#   uv run insidejob run --dry-run
+# Lines starting with # are notes and are ignored. config.example.yaml explains every
+# option, including the advanced ones.
 
-filters:
-  # The job title must match (regex, any case). \b keeps "intern" from matching "Internal".
-  # The Finnish words catch kesätyö, harjoittelija, opinnäytetyö and diplomityö.
-  title: '\b(interns?|internships?|trainees?|traineeship|summer|thesis|graduates?|junior|entry[- ]level|working student|apprentice(ship)?)\b|kesä|harjoittel|opinnäyte|diplomityö'
-  # ...and must not match.
-  exclude: '\b(senior|sr|lead|principal|staff|director|manager|head of|vp|vice president|chief)\b'
-  # Location must match. Jobs with an empty location pass. "Remote" alone isn't listed,
-  # so "Remote - United States" stays out while "Remote - EMEA" gets in.
-  location: 'finland|suomi|helsinki|espoo|vantaa|\b(eu|europe|emea|nordics?)\b'
+# ── What you're looking for ───────────────────────────────────────────────────────
+looking_for:
+  # Which jobs count. Remove the ones you don't want. Senior roles are always left out.
+  roles: [intern, thesis, junior, graduate]
+  # Where. Jobs in these cities rank highest, then the country, then remote.
+  cities: [Helsinki, Espoo, Vantaa]
+  country: Finland
+  # true = remote jobs within Europe count too; anywhere = any remote job; false = none.
+  remote: true
+  # What you like, in plain words. Built in: graphics, AI, games, web, mobile, backend,
+  # software, data, cloud, embedded, security, design, marketing, sales, finance, hr,
+  # research, robotics. Any other word is matched as written (e.g. Rust, fintech).
+  interests: [software, web]
+  # When you can start: a season or month, e.g. summer 2027, autumn 2027, June 2027.
+  # Delete the line if any time is fine.
+  start: summer 2027
 
-sources:
-  - { company: Wolt, type: greenhouse, board: wolt }
-  - { company: Smartly, type: greenhouse, board: smartlyio }
-  - { company: ICEYE, type: ashby, board: iceye }
-  - { company: Supercell, type: ashby, board: supercell }
-  - { company: Reaktor, type: ashby, board: reaktor }
-  - { company: Nitor, type: workable, board: nitor }
-  - { company: Futurice, type: rss, board: careers.futurice.com/jobs.rss }
+# ── Companies to watch ────────────────────────────────────────────────────────────
+# Paste the link of any job ad (or the job list) from a company's careers page.
+# Works with Greenhouse, Ashby, Workable and Teamtailor, and job feeds ending in .rss.
+# Write "Name: link" to choose the name shown in alerts.
+companies:
+  - https://job-boards.greenhouse.io/wolt
+  - "Smartly: https://job-boards.greenhouse.io/smartlyio"
+  - "ICEYE: https://jobs.ashbyhq.com/iceye"
+  - https://jobs.ashbyhq.com/supercell
+  - https://jobs.ashbyhq.com/reaktor
+  - https://apply.workable.com/nitor
+  - https://careers.futurice.com/jobs.rss

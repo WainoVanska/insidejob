@@ -14,6 +14,19 @@ Watches company career pages through official ATS APIs and RSS feeds, and alerts
 - Don't work around bot protection (see Workday below).
 - No secrets in the repo (GitHub Secrets / gitignored `.env`).
 
+## Scope
+What insidejob is for. Check new ideas against this before building them.
+1. Straight from companies' own hiring systems, hourly (often jobs that never reach job boards).
+2. A watchlist of companies you'd love to work at, not a keyword search: low noise.
+3. Ranked for you, with the reasons (🟢🟡🔴, score, 💡 points).
+4. In Discord: one digest per run, 🆕 on new jobs, Top N on demand.
+5. Free and open source, no account, ads or tracking; preferences and job history stay in the user's own copy.
+6. Early-career focus (intern, thesis, junior, graduate; seniors filtered, experience asks penalised). Kept subtle in the README.
+
+Don't build: all-jobs feeds (Duunitori, Työmarkkinatori), a hosted website or accounts, HTML scraping, CV storage or parsing in code (the README's "Let AI fill it in" prompt runs in the user's own AI chat), a non-junior focus.
+
+**Setup target:** from "Use this template" to a welcome message in Discord in about 5 minutes, in the browser only: no installs, no git commands, no regex.
+
 ## Design
 
 **Tooling:** Python >= 3.11, uv (`uv.lock`), pytest, ruff (check + format in CI), MIT license. Runtime deps: `httpx`, `PyYAML`, and stdlib `xml.etree` for RSS (not feedparser, which drops Teamtailor's `tt:` namespace). No pydantic.
@@ -21,6 +34,7 @@ Watches company career pages through official ATS APIs and RSS feeds, and alerts
 **Package:** `src/insidejob/`, entry point `insidejob = "insidejob.cli:main"` (also `python -m insidejob`).
 - `insidejob run [--dry-run] [--config PATH] [--state PATH]`: the hourly alert. `--dry-run` fetches, filters and prints, with no alerts and no state write.
 - `insidejob top [--count N] [--dry-run]`: sends the N best-matching current jobs, new or not. Reads state only to mark jobs first seen in the last 7 days with 🆕; never saves it.
+- `insidejob check [--config PATH]`: validates the config, fetches every board with an empty in-memory state and shows the companies, match counts and the top 5 with scores (terminal, plus `$GITHUB_STEP_SUMMARY` and `::error::` annotations in Actions). Never sends, never needs the webhook; exits 1 on a config error or a board that can't be read.
 
 **Job model:** `id` (`source:board:job_id`), company, title, location (one string, multiple locations joined with `"; "`), url, `posted_at: datetime | None`, workplace (onsite/hybrid/remote), employment (full-time/part-time/internship/fixed-term), start, deadline. The last four are optional and each records whether it was *listed* by the source or *inferred*. The description is kept in memory only, never in state.
 
@@ -28,10 +42,10 @@ Watches company career pages through official ATS APIs and RSS feeds, and alerts
 - Fetch: sequential, one shared `httpx.Client`, ~20 s timeout, short pause between requests. Descriptions are fetched: Greenhouse `?content=true`, Ashby `descriptionPlain`, RSS `description`.
 - Adapters keep `fetch` (HTTP) separate from `parse(raw) -> list[Job]` (pure, fixture-tested). Adapters fill in only what the source lists.
 - `enrich.py` uses regex heuristics (EN + FI) on title and description to fill missing workplace, employment and start, marked as inferred. No signal means the field is left unknown.
-- Filters: title include regex + title exclude regex + location include. Set globally in `config.yaml`; a company-level list **replaces** the global one.
+- Filters: title include regex + title exclude regex + location include. Generated from `looking_for` or set globally under `filters:`; a company-level key **replaces** the global one.
 - Config is loaded into dataclasses with hand-written validation, failing fast with a clear message.
 
-**Ranking** (`rank.py`): a points score with a "why" line whose reasons add up to the score. `DEFAULT_RANK` is **neutral** so it fits anyone: title level (intern 3 / junior 2 / graduate 1), deadline (≤14 d +2, ≤30 d +1), and −2 if the text asks for 2+ years of experience. Users add location, interests and start date under `rank:` in `config.yaml`. Rules match with `words: [...]` (whole words, any case, no regex needed) or `match: '<regex>'`. `title_only: true` ignores the description (for words like "AI" that company boilerplate repeats in nearly every ad: counting mentions was tried and didn't separate real AI jobs from marketing). Colours are relative: `levels: {green: 0.65, yellow: 0.4}` = share of the best score possible (`max_score`), so they still fit when rules change.
+**Ranking** (`rank.py`): a points score with a "why" line whose reasons add up to the score. `DEFAULT_RANK` is **neutral** so it fits anyone: title level (intern 3 / junior 2 / graduate 1), deadline (≤14 d +2, ≤30 d +1), and −2 if the text asks for 2+ years of experience. Users add location, interests and start date through `looking_for` (or exact rules under `rank:`). Rules match with `words: [...]` (whole words, any case, no regex needed) or `match: '<regex>'`. `title_only: true` ignores the description (for words like "AI" that company boilerplate repeats in nearly every ad: counting mentions was tried and didn't separate real AI jobs from marketing). Colours are relative: `levels: {green: 0.65, yellow: 0.4}` = share of the best score possible (`max_score`), so they still fit when rules change.
 
 **State:** `seen.json` = `{ "<source>:<board>": { "<job_id>": {"first_seen": ISO date, "last_seen": ISO date} } }`.
 - A job is new only if its ID hasn't been seen before (edits don't re-alert; reposts with a new ID do).
@@ -48,11 +62,15 @@ Watches company career pages through official ATS APIs and RSS feeds, and alerts
 ┃ 💡 intern +3 · Espoo +3 · computer vision +1.5 · summer 2027 +2
 ```
 
-**Automation:** `run.yml`: cron `0 4-18 * * 1-5` (UTC, weekdays) + `workflow_dispatch`, `concurrency` group so runs never overlap. A `setup` job skips everything when `DISCORD_WEBHOOK_URL` isn't set, so a fresh copy doesn't fail hourly. State lives on an orphan `state` branch, checked out into `state/` and committed as `github-actions[bot]` only when it changed. `top.yml`: manual only, `count` choice (3/5/10/25), `contents: read`, never pushes. `ci.yml`: ruff + pytest on every PR. Tests never touch the network.
+**Automation:** `run.yml`: cron `0 4-18 * * 1-5` (UTC, weekdays) + `workflow_dispatch`, `concurrency` group so runs never overlap. A `setup` job skips everything when `DISCORD_WEBHOOK_URL` isn't set, so a fresh copy doesn't fail hourly. State lives on an orphan `state` branch, checked out into `state/` as a git worktree and committed as `github-actions[bot]` only when it changed; the first run creates the branch, so users never run git. `top.yml`: manual only, `count` choice (3/5/10/25), `contents: read`, never pushes, works before the state branch exists. `check.yml`: `insidejob check` on pushes to `config.yaml`/`presets/**` and on demand, `contents: read`, no secrets. `ci.yml`: ruff + pytest on every PR. Tests never touch the network.
+
+**Welcome message:** the first real run (state has no boards yet) seeds silently as always, then sends "✅ insidejob is set up! Watching N companies · M matching jobs right now. New ones arrive here marked 🆕." with the top 3. If that send fails: log it, still save state (the seeding worked), exit 1.
 
 **Logging:** stdlib `logging`, one INFO line per source (`greenhouse:relex fetched=35 matched=2 new=1`), failures at ERROR.
 
-**Config:** `config.yaml` is a small working starter with neutral ranking; `config.example.yaml` documents every option with an example `rank:` (tests load it, so it must stay valid).
+**Config:** `config.yaml` is a small working starter (`looking_for` with placeholder values + `companies` as links); `config.example.yaml` documents every option: looking_for and companies on top, advanced `filters:`/`rank:` below (tests load its `rank` as `EXAMPLE_RANK`, so it must stay valid).
+- `looking_for:` (`profile.py`) turns plain words into filters and rank parts, in the same YAML shape a hand-written config uses, so normal validation checks the result. `roles` intern/thesis/junior/graduate (default all; title points 3/3/2/1; the senior exclude is always on). `cities` +3, `country` +2 (alias map: Finland also matches Suomi), `remote` +1 (`true` = EU/Europe/EMEA/Nordics pass the filter, `anywhere` = any remote job). `unknown_location`: 2 with a country, 1 with only cities, else 0. `interests`: built-in synonym groups, unknown words used as written, 3 in the title / half in the description; boilerplate words (AI, data, cloud, agile, digital, innovation, automation, analytics, platform, sustainability, design) become a separate `title_only` rule. `start`: a season or month (optional year) → EN + FI regex, +2. Explicit `filters:`/`rank:` keys replace generated ones key by key.
+- `companies:` (`links.py`): a job or board link, `Name: link`, or a full `{company, type, board, options, filters}` entry. Links are parsed offline (Greenhouse, Ashby, Workable, Teamtailor, `.rss` and `/feed/` URLs); Workday and unknown sites get a plain-words error. `sources:` still works and is combined. The same board twice is merged silently, first entry wins.
 
 ## Implementation notes
 - The state diff runs on **all** fetched jobs, not only matches: loosening a filter never alerts on old postings.
@@ -74,4 +92,4 @@ Watches company career pages through official ATS APIs and RSS feeds, and alerts
 ## Ideas, not built
 - A "does this fit me" score from the user's profile (requirements checklist, likely LLM-based).
 - Oracle and Eightfold adapters, Telegram notifier, Gmail alert source, filtering on workplace/employment.
-- `insidejob find <careers page URL>`: detect the hiring system and print the config line.
+- `insidejob find <careers page URL>`: detect the hiring system from a careers page (job links are already parsed offline by `links.py`).

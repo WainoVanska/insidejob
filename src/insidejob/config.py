@@ -1,6 +1,18 @@
 """Load and validate `config.yaml`.
 
-Shape:
+The easy shape (see `profile.py` and `links.py`):
+
+    looking_for: {roles: [intern], cities: [Helsinki], interests: [graphics]}
+    companies:
+      - https://jobs.ashbyhq.com/iceye            # a job or board link
+      - "Small Giant: https://job-boards.greenhouse.io/sggcareers"
+      - { company: Nitor, type: workable, board: nitor }   # a full entry, as below
+
+`looking_for` generates `filters` and `rank`; any key given explicitly below replaces
+the generated one. `sources:` is the older name of `companies:` (both are combined),
+and the same board listed twice is watched once.
+
+Full shape:
 
     filters:                      # global defaults
       title: "<regex>"            # required: job title must match
@@ -39,12 +51,16 @@ from typing import Any
 
 import yaml
 
+from insidejob import profile
 from insidejob.adapters import ADAPTERS
+from insidejob.links import LinkError, parse_link
+from insidejob.profile import ProfileError
 from insidejob.rank import DEFAULT_RANK, DeadlineRule, RankConfig, Rule, words_pattern
 
 FILTER_KEYS = ("title", "exclude", "location")
 RANK_RULE_KEYS = ("title", "location", "interests", "start")
 RANK_KEYS = (*RANK_RULE_KEYS, "unknown_location", "deadline", "levels", "experience")
+SOURCE_KEYS = ("company", "type", "board", "filters", "options")
 
 
 class ConfigError(ValueError):
@@ -92,26 +108,76 @@ def load_config(path: Path) -> Config:
 
 def parse_config(data: Any) -> Config:
     if not isinstance(data, dict):
-        raise ConfigError("config must be a mapping with `filters` and `sources`")
+        raise ConfigError("config must be a mapping with `looking_for` and `companies`")
 
-    global_raw = _mapping(data.get("filters"), "filters")
+    generated: dict[str, dict[str, Any]] = {"filters": {}, "rank": {}}
+    if data.get("looking_for") is not None:
+        try:
+            generated = profile.build(data["looking_for"])
+        except ProfileError as exc:
+            raise ConfigError(f"looking_for: {exc}") from exc
+
+    # Explicit `filters:` / `rank:` keys replace the generated ones, key by key.
+    global_raw = generated["filters"] | _mapping(data.get("filters"), "filters")
     if "title" not in global_raw:
-        raise ConfigError("filters.title is required")
+        raise ConfigError(
+            "say which jobs you want: add a `looking_for:` block "
+            "(or filters.title, a regex the job title must match)"
+        )
     _filters(global_raw, "filters")  # validate the globals even if every source overrides them
 
-    raw_sources = data.get("sources")
-    if not isinstance(raw_sources, list) or not raw_sources:
-        raise ConfigError("sources must be a non-empty list")
+    entries: list[tuple[Any, str]] = []
+    for key in ("companies", "sources"):
+        raw_list = data.get(key)
+        if raw_list is None:
+            continue
+        if not isinstance(raw_list, list):
+            raise ConfigError(f"{key} must be a list (one company per line, starting with -)")
+        entries += [(raw, f"{key}[{i}]") for i, raw in enumerate(raw_list)]
+    if not entries:
+        raise ConfigError("add the companies to watch under `companies:` (job board links)")
 
-    sources: list[Source] = []
-    seen: set[str] = set()
-    for i, raw in enumerate(raw_sources):
-        source = _source(raw, f"sources[{i}]", global_raw)
-        if source.key in seen:
-            raise ConfigError(f"sources[{i}]: duplicate source {source.key}")
-        seen.add(source.key)
-        sources.append(source)
-    return Config(sources=sources, rank=_rank(data.get("rank")))
+    # The same board listed twice (e.g. as a link and in a preset) is watched once:
+    # the first entry wins.
+    sources: dict[str, Source] = {}
+    for raw, where in entries:
+        source = _company(raw, where, global_raw)
+        sources.setdefault(source.key, source)
+
+    rank_raw = generated["rank"] | _mapping(data.get("rank"), "rank")
+    return Config(sources=list(sources.values()), rank=_rank(rank_raw))
+
+
+def _company(raw: Any, where: str, global_raw: dict[str, Any]) -> Source:
+    """One `companies:` entry: a link, `Name: link`, or {company, type, board, ...}."""
+    if isinstance(raw, str):
+        name, link = _split_name(raw)
+        return _from_link(link, name, where, global_raw)
+    if isinstance(raw, dict) and len(raw) == 1:
+        ((name, link),) = raw.items()
+        if name not in SOURCE_KEYS and isinstance(link, str):  # `- Wolt: <link>` in YAML
+            return _from_link(link, str(name), where, global_raw)
+    return _source(raw, where, global_raw)
+
+
+def _split_name(text: str) -> tuple[str | None, str]:
+    """'Wolt: https://…' -> ('Wolt', 'https://…'); a bare link has no name."""
+    if m := re.fullmatch(r"\s*([^:/]+?)\s*:\s+(\S+)\s*", text):
+        return m.group(1), m.group(2)
+    return None, text
+
+
+def _from_link(link: str, name: str | None, where: str, global_raw: dict[str, Any]) -> Source:
+    try:
+        found = parse_link(link)
+    except LinkError as exc:
+        raise ConfigError(f"{where}: {exc}") from exc
+    return Source(
+        company=(name or "").strip() or found.company,
+        type=found.type,
+        board=found.board,
+        filters=_filters(global_raw, f"{where}.filters"),
+    )
 
 
 def _rank(value: Any) -> RankConfig:

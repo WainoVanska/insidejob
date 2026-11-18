@@ -42,12 +42,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # State lives on its own orphan branch so `main` only has code commits.
-      - name: Check out state branch
-        uses: actions/checkout@v7
-        with:
-          ref: state
-          path: state
+      # State lives on its own orphan branch so `main` only has code commits. A new copy
+      # of the template doesn't have one yet: the first run creates it.
+      - name: Check out state branch (create it on the first run)
+        run: |
+          if git ls-remote --exit-code --heads origin state > /dev/null; then
+            git fetch --depth=1 origin state
+            git worktree add -B state state FETCH_HEAD
+          else
+            echo "No state branch yet: creating it. This first run only records the jobs already up."
+            git worktree add --detach state
+            git -C state switch --orphan state
+          fi
 
       - uses: astral-sh/setup-uv@v10.3.3
         with:
@@ -74,5 +80,5 @@ jobs:
             echo "State unchanged, nothing to commit."
           else
             git commit -m "state: update $(date -u +%Y-%m-%dT%H:%MZ)"
-            git push
+            git push origin HEAD:refs/heads/state
           fi
