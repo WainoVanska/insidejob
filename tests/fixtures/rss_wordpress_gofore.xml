@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	>
+
+<channel>
+	<title>Careers - Gofore</title>
+	<atom:link href="https://gofore.com/en/careers/feed/" rel="self" type="application/rss+xml" />
+	<link>https://gofore.com/en/careers/</link>
+	<description>We offer expert knowledge in digitalization.</description>
+	<lastBuildDate>Wed, 18 Nov 2026 13:00:09 +0000</lastBuildDate>
+	<language>en-GB</language>
+	<sy:updatePeriod>
+	hourly	</sy:updatePeriod>
+	<sy:updateFrequency>
+	1	</sy:updateFrequency>
+	<generator>https://wordpress.org/?v=7.1.4</generator>
+
+<image>
+	<url>https://gofore.com/media/cropped-favicon-3-32x32.png</url>
+	<title>Careers - Gofore</title>
+	<link>https://gofore.com/en/careers/</link>
+	<width>32</width>
+	<height>32</height>
+</image> 
+	<item>
+		<title>Space Software Summer Trainee</title>
+		<link>https://gofore.com/en/careers/space-software-summer-trainee/</link>
+		
+		<dc:creator><![CDATA[Karoliina Virtanen]]></dc:creator>
+		<pubDate>Wed, 11 Nov 2026 13:59:18 +0000</pubDate>
+				<guid isPermaLink="false">https://gofore.com/job/space-software-summer-trainee/</guid>
+
+					<description><![CDATA[<p>Kickstart your space software career! Join as a summer trainee, work on real projects, grow your skills, and help build a better future with a passionate, supportive team.</p>
+<p>The post <a href="https://gofore.com/en/careers/space-software-summer-trainee/">Space Software Summer Trainee</a> appeared first on <a href="https://gofore.com/en">Gofore</a>.</p>
+]]></description>
+										<content:encoded><![CDATA[<p><span><strong>We are looking for Space Software Summer Trainee(s)</strong></span></p>
+<p><span>We are looking for space software enthusiasts to join our experienced engineers over summer and possibly longer. In this role you will work on a project that best suits your background and interests. The daily tasks may vary but typically include software development or testing using C, C++, Java, Pyt]]></content:encoded>
+					
+		
+		
+			</item>
+    <item>
+		<title>Head of Energy Sector</title>
+		<link>https://gofore.com/en/careers/head-of-energy-sector/</link>
+		
+		<dc:creator><![CDATA[]]></dc:creator>
+		<pubDate>Tue, 10 Nov 2026 14:59:15 +0000</pubDate>
+				<guid isPermaLink="false">https://gofore.com/job/head-of-energy-sector/</guid>
+
+					<description><![CDATA[<p>We are looking for a Head of Energy Sector to join our Intelligent Industry business area team. This role is based in Vaasa.</p>
+<p>The post <a href="https://gofore.com/en/careers/head-of-energy-sector/">Head of Energy Sector</a> appeared first on <a href="https://gofore.com/en">Gofore</a>.</p>
+]]></description>
+										<content:encoded><![CDATA[<p><span>In this exciting role, you will build Gofore’s Energy Sector into a distinctive, customer-centric growth business by combining industry insight, technology vision, commercial ambition and inspirational leadership.</span></p>
+<p><span>You will shape a compelling narrative for the Energy Sector around market evolution, customer needs and technology transformation. By turning customer and ma]]></content:encoded>
+					
+		
+		
+			</item>
+  </channel>
+</rss>

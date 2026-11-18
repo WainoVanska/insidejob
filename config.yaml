@@ -21,3 +21,13 @@ sources:
   - { company: Supermetrics, type: greenhouse, board: supermetricsoy }
   - { company: Solita, type: greenhouse, board: solita }
   - { company: Small Giant, type: greenhouse, board: sggcareers }
+
+  # RSS: the feed URL without https://. Teamtailor = jobs page + ".rss".
+  - { company: Futurice, type: rss, board: careers.futurice.com/jobs.rss }
+  - { company: Kuva Space, type: rss, board: careers.kuvaspace.com/jobs.rss }
+  - { company: HypeHype, type: rss, board: hypehype.teamtailor.com/jobs.rss }
+  - { company: Siili, type: rss, board: siili.teamtailor.com/jobs.rss }
+  - { company: Vincit, type: rss, board: vincitoyj.teamtailor.com/jobs.rss }
+  # WordPress job feeds (newest ~10 posts only, which is enough for new-job alerts).
+  - { company: Gofore, type: rss, board: gofore.com/en/careers/feed/ }
+  - { company: Rovio, type: rss, board: www.rovio.com/open-positions/feed/ }

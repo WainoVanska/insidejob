@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:tt="https://teamtailor.com/locations">
+  <channel>
+    <title>Futurice</title>
+    <description>Current job openings</description>
+    <link>https://careers.futurice.com/jobs</link>
+    <item>
+      <title>Business Development Director</title>
+      <description>&lt;h3&gt;&lt;strong&gt;Join us!&amp;nbsp;&lt;/strong&gt;&lt;/h3&gt;&lt;h3&gt;&lt;strong&gt;About the role&lt;/strong&gt;&lt;/h3&gt;&lt;p&gt;As Business Development Director at Futurice, you’ll help us scale our new business engine and the commercial health of our new accounts, reporting directly to our Managing Director. You’ll find, win and run new accounts across clients in legal, automotive, e</description>
+      <pubDate>Wed, 14 Oct 2026 11:17:06 +0300</pubDate>
+      <link>https://careers.futurice.com/jobs/8543612-business-development-director</link>
+      <remoteStatus>fully</remoteStatus>
+      <guid>957103b1-31e7-48ee-8a78-b94e1c782c13</guid>
+      <tt:locations>
+        <tt:location>
+          <tt:name>Futurice United Kingdom</tt:name>
+          <tt:address>United Kingdom</tt:address>
+          <tt:zip/>
+          <tt:city>London</tt:city>
+          <tt:country>United Kingdom</tt:country>
+        </tt:location>
+      </tt:locations>
+      <tt:department>Business</tt:department>
+      <tt:role/>
+    </item>
+    <item>
+      <title>Data &amp; AI Principal (Technical)</title>
+      <description>&lt;p&gt;&lt;strong&gt;About the role&lt;/strong&gt; &lt;br&gt;We are looking for technically grounded &lt;strong&gt;Principal Consultant &lt;/strong&gt;to bridge the gap between complex Data &amp;amp; AI architecture and real-world business impact. This is a senior role that requires both technical mastery as well as understanding the clients form consultative perspective. &lt;br&gt;&lt;br&gt;Rol</description>
+      <pubDate>Wed, 18 Nov 2026 08:44:20 +0200</pubDate>
+      <link>https://careers.futurice.com/jobs/8758856-data-ai-principal-technical</link>
+      <remoteStatus>hybrid</remoteStatus>
+      <guid>d9956e22-9df8-40f2-af64-5b0d97a2a8cd</guid>
+      <tt:locations>
+        <tt:location>
+          <tt:name>Futurice Helsinki</tt:name>
+          <tt:address>Kansakoulukatu 3</tt:address>
+          <tt:zip>00100</tt:zip>
+          <tt:city>Helsinki</tt:city>
+          <tt:country>Finland</tt:country>
+        </tt:location>
+        <tt:location>
+          <tt:name>Futurice Tampere</tt:name>
+          <tt:address>Kelloportinkatu 1</tt:address>
+          <tt:zip>33100</tt:zip>
+          <tt:city>Tampere</tt:city>
+          <tt:country>Finland</tt:country>
+        </tt:location>
+      </tt:locations>
+      <tt:department>Data &amp; AI</tt:department>
+      <tt:role/>
+    </item>
+  </channel>
+</rss>
