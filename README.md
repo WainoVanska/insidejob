@@ -11,7 +11,9 @@ I built it for my own summer 2027 internship search in Finland.
 1. Fetch each company's jobs from the official API or feed of its hiring system (Greenhouse, Ashby, Workable, Teamtailor and WordPress RSS). Job sites like LinkedIn are never scraped: [docs/sources.md](docs/sources.md).
 2. Keep jobs whose title and location match `config.yaml`.
 3. Skip jobs already seen, then rank the new ones with a simple points score (title, city, interests, start date, deadline).
-4. Send them to Discord in one message. A GitHub Action does this hourly on weekdays.
+4. Send them to Discord in one message, marked 🆕. A GitHub Action does this hourly on weekdays.
+
+Want the best jobs open right now, new or not? Run **Actions → Top jobs** and pick 3, 5, 10 or 25.
 
 ## Set it up
 

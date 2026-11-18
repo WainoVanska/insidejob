@@ -1,0 +1,49 @@
+name: Top jobs
+
+# On demand: Actions → Top jobs → Run workflow, pick how many. Sends the best-matching
+# jobs open right now to Discord, with 🆕 on the ones first seen in the last 7 days.
+# It reads the `state` branch but never writes it, so the hourly alerts are unaffected.
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: How many of the best-matching jobs to send
+        type: choice
+        options: ["3", "5", "10", "25"]
+        default: "10"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: insidejob-top
+  cancel-in-progress: false
+
+jobs:
+  top:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check out state branch (read only)
+        uses: actions/checkout@v7
+        with:
+          ref: state
+          path: state
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --locked --no-dev
+
+      # The input goes through an env var, never straight into the shell line.
+      - name: Send top jobs
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          COUNT: ${{ inputs.count }}
+        run: >-
+          uv run --no-sync insidejob top --count "$COUNT"
+          --config config.yaml --state state/seen.json
