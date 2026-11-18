@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:tt="https://teamtailor.com/locations">
+  <channel>
+    <title>Kuva Space</title>
+    <description>Open positions </description>
+    <link>https://careers.kuvaspace.com/jobs</link>
+    <item>
+      <title>Open Application</title>
+      <description>&lt;p&gt;&lt;strong&gt;&lt;em&gt;Kuva Space is on a mission to solve the world's most pressing issues, such as climate change, food security, safety and security, by building the world's most extensive hyperspectral microsatellite constellation and developing AI-driven analytics services.&lt;/em&gt;&lt;/strong&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;&lt;em&gt;We deliver reliable and timely global insights</description>
+      <pubDate>Fri, 23 Sep 2022 14:13:45 +0300</pubDate>
+      <link>https://careers.kuvaspace.com/jobs/2087027-open-application</link>
+      <remoteStatus>none</remoteStatus>
+      <guid>f108af46-6dcd-4948-8f3e-7d5dde3466d8</guid>
+      <tt:locations>
+        <tt:location>
+          <tt:name></tt:name>
+          <tt:address>Vaisalantie 2</tt:address>
+          <tt:zip>02130</tt:zip>
+          <tt:city>Espoo</tt:city>
+          <tt:country>Finland</tt:country>
+        </tt:location>
+      </tt:locations>
+      <tt:department/>
+      <tt:role/>
+    </item>
+  </channel>
+</rss>

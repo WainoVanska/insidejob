@@ -18,7 +18,8 @@ def minimal(**overrides):
 def test_loads_repo_config():
     config = load_config(ROOT / "config.yaml")
     assert len(config.sources) >= 9
-    assert all(source.type == "greenhouse" for source in config.sources)
+    known = {"greenhouse", "rss", "ashby", "workday", "workable"}
+    assert {source.type for source in config.sources} <= known
 
 
 def test_loads_example_config():
