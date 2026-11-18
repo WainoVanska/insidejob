@@ -36,14 +36,14 @@ def test_format_matches_agreed_layout():
     )
     assert format_job(job) == (
         "**RELEX** – Summer Trainee, Data Science\n"
-        "Helsinki · hybrid · internship · ~start Jun 2027 · apply by 15.1.2027"
-        " · <https://example.com/1>"
+        "📍 Helsinki · 🏢 hybrid · 💼 internship · 🗓️ ~starts Jun 2027 · ⏳ apply by 15.1.2027\n"
+        "🔗 <https://example.com/1>"
     )
 
 
 def test_unknown_fields_are_left_out():
     job = make_job(location="", url="https://example.com/1")
-    assert format_job(job).splitlines()[1] == "<https://example.com/1>"
+    assert format_job(job).splitlines()[1] == "🔗 <https://example.com/1>"
 
 
 def test_markdown_in_titles_is_escaped():
@@ -53,12 +53,12 @@ def test_markdown_in_titles_is_escaped():
 
 def test_single_message_has_header():
     (message,) = build_messages(ranked(make_job("1"), make_job("2")))
-    assert message.startswith("**2 new jobs**\n\n★ **Acme**")
+    assert message.startswith("🔍 **2 new jobs**\n\n🔴 **Acme**")
     assert message.count("<https://example.com/") == 2
 
 
 def test_header_singular():
-    assert build_messages(ranked(make_job()))[0].startswith("**1 new job**\n\n")
+    assert build_messages(ranked(make_job()))[0].startswith("🔍 **1 new job**\n\n")
 
 
 def test_splits_at_limit_without_breaking_jobs():
@@ -74,7 +74,7 @@ def test_splits_at_limit_without_breaking_jobs():
 def test_oversized_job_is_truncated():
     (message,) = build_messages(ranked(make_job(title="x" * 3000)))
     assert len(message) <= MESSAGE_LIMIT
-    assert message.startswith("**1 new job**\n\n★ **Acme**")
+    assert message.startswith("🔍 **1 new job**\n\n🔴 **Acme**")
     assert message.endswith("…")
 
 
@@ -123,12 +123,20 @@ def test_failure_raises():
         DiscordNotifier(WEBHOOK, client, sleep=lambda _: None).send(ranked(make_job()))
 
 
-def test_stars_and_reason_line():
+def test_match_dot_score_and_reason_line():
     job = make_job(company="ICEYE", title="Engineering Intern", location="Espoo", url="https://x/1")
-    text = format_job(job, Rank(11, 3, ("intern", "Espoo", "C++, engine")))
+    text = format_job(job, Rank(11, 3, ("intern +3", "Espoo +3", "C++, engine +1"), 13))
     assert text == (
-        "★★★ **ICEYE** – Engineering Intern\nEspoo · <https://x/1>\n↳ intern · Espoo · C++, engine"
+        "🟢 **ICEYE** – Engineering Intern · `11 / 13`\n"
+        "📍 Espoo\n"
+        "🔗 <https://x/1>\n"
+        "💡 intern +3 · Espoo +3 · C++, engine +1"
     )
+
+
+@pytest.mark.parametrize(("stars", "dot"), [(3, "🟢"), (2, "🟡"), (1, "🔴")])
+def test_match_level_colours(stars, dot):
+    assert format_job(make_job(), Rank(5, stars)).startswith(f"{dot} **Acme**")
 
 
 def test_messages_keep_the_given_order():

@@ -1,10 +1,12 @@
 """Discord webhook notifier.
 
 One digest per run, split into as many messages as Discord's 2,000-character limit
-needs. Each job is two lines:
+needs. Each job is a block, best match first:
 
-    **RELEX** – Summer Trainee, Data Science
-    Helsinki · ~hybrid · internship · apply by 15.1.2027 · <https://…>
+    🟢 **RELEX** – Summer Trainee, Data Science · `10.5 / 13`
+    📍 Helsinki · 🏢 ~hybrid · 💼 internship · ⏳ apply by 15.1.2027
+    🔗 <https://…>
+    💡 intern +3 · Helsinki +3 · data +1.5 · closes in 9 d +2
 
 Links are wrapped in <> so Discord doesn't add a preview card for every job, and
 mentions are disabled so a job title can never ping anyone.
@@ -16,9 +18,9 @@ from collections.abc import Callable
 
 import httpx
 
-from insidejob.format import detail_parts, reason_line
+from insidejob.format import detail_parts, match_dot, reason_line, score_text
 from insidejob.models import Job
-from insidejob.rank import Rank, RankedJob, stars_text
+from insidejob.rank import Rank, RankedJob
 
 MESSAGE_LIMIT = 2000
 # A single "~" is harmless (and is our "inferred" marker); "~~" would strike through.
@@ -31,12 +33,16 @@ def escape(text: str) -> str:
 
 
 def format_job(job: Job, rank: Rank | None = None) -> str:
-    details = " · ".join([*(escape(p) for p in detail_parts(job)), f"<{job.url}>"])
-    head = f"{stars_text(rank.stars)} " if rank else ""
-    text = f"{head}**{escape(job.company)}** – {escape(job.title)}\n{details}"
+    title = f"**{escape(job.company)}** – {escape(job.title)}"
+    if rank:
+        title = f"{match_dot(rank)} {title} · `{score_text(rank)}`"
+    lines = [title]
+    if details := detail_parts(job, icons=True):
+        lines.append(" · ".join(escape(p) for p in details))
+    lines.append(f"🔗 <{job.url}>")
     if rank and rank.reasons:
-        text += f"\n{escape(reason_line(rank))}"
-    return text
+        lines.append(escape(reason_line(rank, "💡 ")))
+    return "\n".join(lines)
 
 
 def build_messages(items: list[RankedJob], limit: int = MESSAGE_LIMIT) -> list[str]:
@@ -44,7 +50,7 @@ def build_messages(items: list[RankedJob], limit: int = MESSAGE_LIMIT) -> list[s
 
     `items` are already in the order to show (best first).
     """
-    header = f"**{len(items)} new job{'s' if len(items) != 1 else ''}**"
+    header = f"🔍 **{len(items)} new job{'s' if len(items) != 1 else ''}**"
     max_block = limit - len(header) - 2  # any single job fits with the header
     messages: list[str] = []
     current = header

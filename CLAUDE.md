@@ -36,10 +36,14 @@ Watches company career pages through official ATS APIs and RSS feeds, and alerts
 - IDs missing for 60 days are pruned.
 - A failed source is skipped and its state is left untouched. The run continues and exits non-zero at the end.
 
-**Alerts:** Discord webhook first (`DISCORD_WEBHOOK_URL` secret), behind a `Notifier` interface so Telegram can be added later. One digest per run; nothing is sent when there's nothing new. Split at 2,000 characters. Plain text, two lines per job, with unknown fields left out and inferred values marked with `~`:
+**Alerts:** Discord webhook first (`DISCORD_WEBHOOK_URL` secret), behind a `Notifier` interface so Telegram can be added later. One digest per run; nothing is sent when there's nothing new. Split at 2,000 characters. Text with emojis (changed 2026-11-18 at Wäinö's request), best match first, unknown fields left out and inferred values marked with `~`. The dot is the match level (🟢 ≥ `stars.three`, 🟡 ≥ `stars.two`, 🔴 below), the score is out of the best score possible, and each 💡 reason shows its points so they add up to the score:
 ```
-**RELEX** – Summer Trainee, Data Science
-Helsinki · hybrid · internship · start ~Jun 2027 · apply by 15.1.2027 · <https://…>
+🔍 **8 new jobs**
+
+🟡 **ICEYE** – ICEYE Engineering Intern Lab 2027 · `9.5 / 13`
+📍 Espoo, Finland · 🏢 hybrid · 💼 full-time · 🗓️ ~starts May 2027 · ⏳ apply by 15.1.2027
+🔗 <https://…>
+💡 intern +3 · Espoo +3 · computer vision +1.5 · summer 2027 +2
 ```
 
 **Automation:** GitHub Actions cron `0 4-18 * * 1-5` (UTC, about 06–20 Finnish time, weekdays) + `workflow_dispatch`. `concurrency` group so runs never overlap. State lives on an orphan `state` branch, checked out into `state/` and committed as `github-actions[bot]` only when it changed (`permissions: contents: write`). CI runs ruff + pytest on every PR. Tests never touch the network.
