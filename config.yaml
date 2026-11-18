@@ -33,6 +33,18 @@ sources:
   - { company: Supercell, type: ashby, board: supercell }
   - { company: Reaktor, type: ashby, board: reaktor }
 
+  # Workday: the career site URL without https://. Big companies list thousands of jobs
+  # worldwide, so `facet` narrows it server-side to one location (name as shown in the
+  # site's filters).
+  - company: NVIDIA
+    type: workday
+    board: nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite
+    options: { facet: Finland }
+  - company: KONE
+    type: workday
+    board: kone.wd3.myworkdayjobs.com/Careers
+    options: { facet: Finland }
+
   # WordPress job feeds (newest ~10 posts only, which is enough for new-job alerts).
   - { company: Gofore, type: rss, board: gofore.com/en/careers/feed/ }
   - { company: Rovio, type: rss, board: www.rovio.com/open-positions/feed/ }

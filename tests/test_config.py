@@ -68,7 +68,7 @@ def test_optional_filters_may_be_omitted():
         (minimal(sources=[]), "non-empty list"),
         (minimal(sources=[{"company": "A", "type": "greenhouse"}]), "`board` is required"),
         (minimal(sources=[{"type": "greenhouse", "board": "a"}]), "`company` is required"),
-        (minimal(sources=[{"company": "A", "type": "workday", "board": "a"}]), "unknown type"),
+        (minimal(sources=[{"company": "A", "type": "taleo", "board": "a"}]), "unknown type"),
         (
             minimal(sources=[{"company": "A", "type": "greenhouse", "board": "a", "filters": 3}]),
             "must be a mapping",
@@ -87,6 +87,37 @@ def test_optional_filters_may_be_omitted():
 def test_invalid_config_fails_fast(data, message):
     with pytest.raises(ConfigError, match=message):
         parse_config(data)
+
+
+WORKDAY = {"company": "KONE", "type": "workday", "board": "kone.wd3.myworkdayjobs.com/Careers"}
+
+
+def test_options_are_passed_through():
+    data = minimal(sources=[WORKDAY | {"options": {"facet": " Finland "}}])
+    (source,) = parse_config(data).sources
+    assert source.options == {"facet": "Finland"}
+
+
+def test_options_default_to_empty():
+    (source,) = parse_config(minimal()).sources
+    assert source.options == {}
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        (WORKDAY, "`facet` is required for type workday"),
+        (WORKDAY | {"options": {"facet": "Finland", "x": "1"}}, r"unknown option\(s\) \['x'\]"),
+        (WORKDAY | {"options": {"facet": 3}}, "must be a non-empty string"),
+        (
+            {"company": "A", "type": "greenhouse", "board": "a", "options": {"facet": "x"}},
+            "unknown option",
+        ),
+    ],
+)
+def test_invalid_options(source, message):
+    with pytest.raises(ConfigError, match=message):
+        parse_config(minimal(sources=[source]))
 
 
 def test_error_names_the_source(tmp_path):

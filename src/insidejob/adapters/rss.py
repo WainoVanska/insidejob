@@ -15,6 +15,7 @@ alerts, since new posts always appear at the top.
 """
 
 import xml.etree.ElementTree as ET
+from collections.abc import Mapping
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 
@@ -42,7 +43,7 @@ def feed_url(board: str) -> str:
     return board if board.startswith(("https://", "http://")) else f"https://{board}"
 
 
-def fetch(client: httpx.Client, board: str) -> bytes:
+def fetch(client: httpx.Client, board: str, options: Mapping[str, str] | None = None) -> bytes:
     """Download the feed. Returns raw bytes so the XML parser honours its declared encoding."""
     response = client.get(feed_url(board))
     response.raise_for_status()

@@ -12,6 +12,8 @@ Shape:
         board: relex
         filters:                  # optional: each key given here REPLACES the global one
           location: "..."
+        options:                  # optional: adapter-specific settings (see each adapter's OPTIONS)
+          facet: Finland
 
 All regexes are case-insensitive. Problems raise `ConfigError` with a message that
 points at the offending entry, so a bad config fails fast instead of silently matching
@@ -19,7 +21,7 @@ nothing.
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +49,7 @@ class Source:
     type: str
     board: str
     filters: Filters
+    options: dict[str, str] = field(default_factory=dict, hash=False)
 
     @property
     def key(self) -> str:
@@ -97,9 +100,9 @@ def parse_config(data: Any) -> Config:
 
 def _source(raw: Any, where: str, global_raw: dict[str, Any]) -> Source:
     raw = _mapping(raw, where)
-    for field in ("company", "type", "board"):
-        if not isinstance(raw.get(field), str) or not raw[field].strip():
-            raise ConfigError(f"{where}: `{field}` is required")
+    for name in ("company", "type", "board"):
+        if not isinstance(raw.get(name), str) or not raw[name].strip():
+            raise ConfigError(f"{where}: `{name}` is required")
     if raw["type"] not in ADAPTERS:
         known = ", ".join(sorted(ADAPTERS))
         raise ConfigError(f"{where}: unknown type {raw['type']!r} (known: {known})")
@@ -111,7 +114,27 @@ def _source(raw: Any, where: str, global_raw: dict[str, Any]) -> Source:
         type=raw["type"],
         board=raw["board"].strip(),
         filters=_filters(merged, f"{where}.filters"),
+        options=_options(raw.get("options"), raw["type"], f"{where}.options"),
     )
+
+
+def _options(value: Any, adapter_type: str, where: str) -> dict[str, str]:
+    """Check options against the adapter's OPTIONS: {name: required}."""
+    raw = _mapping(value, where)
+    allowed = getattr(ADAPTERS[adapter_type], "OPTIONS", {})
+    unknown = set(raw) - set(allowed)
+    if unknown:
+        hint = f" (allowed: {', '.join(sorted(allowed))})" if allowed else ""
+        raise ConfigError(f"{where}: unknown option(s) {sorted(unknown)} for {adapter_type}{hint}")
+    for name, required in allowed.items():
+        if required and name not in raw:
+            raise ConfigError(f"{where}: `{name}` is required for type {adapter_type}")
+    options: dict[str, str] = {}
+    for name, val in raw.items():
+        if not isinstance(val, str) or not val.strip():
+            raise ConfigError(f"{where}.{name} must be a non-empty string")
+        options[name] = val.strip()
+    return options
 
 
 def _filters(raw: dict[str, Any], where: str) -> Filters:
