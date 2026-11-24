@@ -15,7 +15,8 @@ from pathlib import Path
 
 from insidejob.config import ConfigError, load_config
 from insidejob.format import plain
-from insidejob.notify.discord import DiscordNotifier
+from insidejob.health import Health, HealthError, health_path
+from insidejob.notify.discord import DiscordNotifier, build_heartbeat
 from insidejob.pipeline import RunResult, make_client, run
 from insidejob.state import State, StateError
 
@@ -39,6 +40,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_cmd.add_argument("--config", type=Path, default=Path("config.yaml"), help="config file")
     run_cmd.add_argument("--state", type=Path, default=Path("seen.json"), help="state file")
+    run_cmd.add_argument(
+        "--heartbeat",
+        action="store_true",
+        help="also send a short 'still alive' summary to Discord (the weekly check-in)",
+    )
     return parser
 
 
@@ -57,7 +63,8 @@ def _run(args: argparse.Namespace) -> int:
     try:
         config = load_config(args.config)
         state = State.load(args.state)
-    except (ConfigError, StateError) as exc:
+        health = Health.load(health_path(args.state))
+    except (ConfigError, StateError, HealthError) as exc:
         log.error("%s", exc)
         return 2
 
@@ -83,11 +90,31 @@ def _run(args: argparse.Namespace) -> int:
                     log.error("sending the alert failed, state not saved: %s", _redact(exc))
                     return 1
             state.save(args.state)
+            _save_health(health, result, config, today, health_path(args.state))
+            if args.heartbeat:
+                try:
+                    DiscordNotifier(webhook, client).send_text(_heartbeat(result, health))
+                except Exception as exc:
+                    log.error("sending the heartbeat failed: %s", _redact(exc))
+                    return 1
 
     if result.failed:
         log.error("%d source(s) failed: %s", len(result.failed), _keys(result.failed))
         return 1
     return 0
+
+
+def _save_health(health: Health, result: RunResult, config, today, path: Path) -> None:
+    for source in result.sources:
+        health.record(source.source.key, ok=not source.error, today=today)
+    health.retain(s.key for s in config.sources)
+    health.save(path)
+
+
+def _heartbeat(result: RunResult, health: Health) -> str:
+    failing = [(r.source.key, health.failing_since(r.source.key)) for r in result.failed]
+    matching = sum(len(s.matched) for s in result.sources)
+    return build_heartbeat(len(result.sources), matching, failing)
 
 
 def _print_new(result: RunResult) -> None:

@@ -13,6 +13,7 @@ mentions are disabled so a job title can never ping anyone.
 import re
 import time
 from collections.abc import Callable
+from datetime import date
 
 import httpx
 
@@ -55,6 +56,20 @@ def build_messages(jobs: list[Job], limit: int = MESSAGE_LIMIT) -> list[str]:
     return messages
 
 
+def build_heartbeat(boards: int, matching: int, failing: list[tuple[str, date]]) -> str:
+    """The weekly "still alive" message.
+
+    `failing` is (board key, failing since) for each board that failed this run.
+    """
+    lines = [
+        "**insidejob weekly check-in**",
+        f"{boards} boards checked · {len(failing)} failed · {matching} matching jobs open",
+    ]
+    for key, since in failing:
+        lines.append(f"⚠ {escape(key)} failing since {since.day}.{since.month}.")
+    return "\n".join(lines)
+
+
 class DiscordNotifier:
     def __init__(
         self,
@@ -74,6 +89,9 @@ class DiscordNotifier:
             if i:
                 self.sleep(self.pause)
             self._post(message)
+
+    def send_text(self, content: str) -> None:
+        self._post(content[:MESSAGE_LIMIT])
 
     def _post(self, content: str) -> None:
         payload = {"content": content, "allowed_mentions": {"parse": []}}

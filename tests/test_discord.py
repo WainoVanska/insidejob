@@ -115,3 +115,14 @@ def test_failure_raises():
     client, _ = recording_client([500])
     with pytest.raises(httpx.HTTPStatusError):
         DiscordNotifier(WEBHOOK, client, sleep=lambda _: None).send([make_job()])
+
+
+def test_heartbeat_message():
+    from datetime import date
+
+    from insidejob.notify.discord import build_heartbeat
+
+    text = build_heartbeat(21, 6, [("workday:kone", date(2026, 11, 18))])
+    assert "21 boards checked · 1 failed · 6 matching jobs open" in text
+    assert "⚠ workday:kone failing since 18.11." in text
+    assert build_heartbeat(21, 0, []).count("\n") == 1

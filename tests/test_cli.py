@@ -152,3 +152,34 @@ def test_missing_command_is_an_error():
     with pytest.raises(SystemExit) as exc:
         cli.main([])
     assert exc.value.code == 2
+
+
+def test_heartbeat_posts_summary_even_with_nothing_new(files, fake):
+    config, state = files
+    assert run_cli(config, state, "--heartbeat") == 0
+    (post,) = fake["posts"]
+    assert "weekly check-in" in post["content"]
+    assert "1 boards checked · 0 failed · 1 matching jobs open" in post["content"]
+
+
+def test_no_heartbeat_without_flag(files, fake):
+    config, state = files
+    run_cli(config, state)
+    assert fake["posts"] == []
+
+
+def test_heartbeat_reports_failing_board_since_first_failure(files, fake):
+    config, state = files
+    fake["board"] = 503
+    assert run_cli(config, state, "--heartbeat") == 1
+    (post,) = fake["posts"]
+    assert "⚠ greenhouse:acme failing since" in post["content"]
+    health = json.loads((state.parent / "health.json").read_text(encoding="utf-8"))
+    assert "failing_since" in health["greenhouse:acme"]
+
+
+def test_dry_run_writes_no_health(files, fake):
+    config, state = files
+    run_cli(config, state, "--dry-run", "--heartbeat")
+    assert not (state.parent / "health.json").exists()
+    assert fake["posts"] == []

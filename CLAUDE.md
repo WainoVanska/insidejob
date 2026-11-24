@@ -76,6 +76,7 @@ See `docs/sources.md` (verified 2026-11-18). Greenhouse 9, Teamtailor RSS 5, Wor
 - [x] v1 live (2026-11-18): #4–#8 merged via #27, Discord alerts confirmed, actions bumped (#28), README (#29)
 - [x] More adapters merged (#30–#33): RSS (#9), Ashby (#10), Workday (#12), Workable (#13)
 - [x] Workday disabled in `config.yaml`: Cloudflare 429s GitHub Actions runners. 21 active companies
+- [x] Weekly heartbeat (feat/weekly-heartbeat): Monday 05:30 UTC run with `--heartbeat` posts a summary; per-board health in `health.json` on the `state` branch (`last_ok`, `failing_since`). Chosen weekly over daily: a daily ping becomes noise you stop reading.
 - [ ] Wäinö: make the repo public
 - Later / needs design: Oracle (#14), Eightfold (#15), Aiven token (#16), field filters (#18), match score (#19), Gmail (#20). Telegram (#17) parked: not wanted for now.
 

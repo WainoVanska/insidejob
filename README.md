@@ -20,7 +20,7 @@ A `~` means insidejob guessed that detail from the job text. The company didn't 
 3. Compare them with the jobs already seen, which are saved in `seen.json`.
 4. Send the new ones to Discord in one message.
 
-A GitHub Action runs this every hour on weekdays. The list of seen jobs lives on a separate `state` branch.
+A GitHub Action runs this every hour on weekdays. On Monday mornings it also posts a short check-in (boards checked, any that are failing and since when), so a quiet channel means "nothing new", not "broken". The list of seen jobs lives on a separate `state` branch.
 
 Job sites like LinkedIn or Duunitori are never scraped. All data comes from public APIs that companies publish for their own job listings. [docs/sources.md](docs/sources.md) lists the sources and how each one was checked.
 

@@ -5,6 +5,10 @@ on:
     # Hourly on weekdays, 04-18 UTC = about 06-20 Finnish time (07-21 in summer).
     # GitHub may start scheduled runs 5-30 minutes late.
     - cron: "0 4-18 * * 1-5"
+    # Weekly heartbeat: Monday 05:30 UTC = 07:30 Finnish time (08:30 in summer). A normal
+    # run that also posts a "still alive" summary, so a quiet channel means "nothing new",
+    # not "broken". Must match the schedule check in the run step.
+    - cron: "30 5 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -39,7 +43,8 @@ jobs:
       - name: Run insidejob
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: uv run --no-sync insidejob run --config config.yaml --state state/seen.json
+          HEARTBEAT: ${{ github.event.schedule == '30 5 * * 1' && '--heartbeat' || '' }}
+        run: uv run --no-sync insidejob run --config config.yaml --state state/seen.json $HEARTBEAT
 
       # Runs even if a source failed (exit 1): the other sources' state must still be
       # saved. The job itself stays failed, so GitHub emails about the failure.
@@ -49,7 +54,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add seen.json
+          git add seen.json health.json
           if git diff --cached --quiet; then
             echo "State unchanged, nothing to commit."
           else
