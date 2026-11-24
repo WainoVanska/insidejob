@@ -341,3 +341,42 @@ def test_presets_command_reports_failures(fake, tmp_path, monkeypatch):
     assert "Some preset job boards failed" in text
     assert "`greenhouse:acme`" in text
     assert fake["posts"] == []
+
+
+def test_heartbeat_posts_check_in_even_with_nothing_new(files, fake):
+    config, state = files
+    run_cli(config, state)  # first run: seeds and sends the welcome message
+    fake["posts"].clear()
+    assert run_cli(config, state, "--heartbeat") == 0
+    (post,) = fake["posts"]
+    assert post["content"].startswith("🩺 **Weekly check-in** · 1 company checked")
+    assert "all boards OK" in post["content"]
+
+
+def test_no_heartbeat_without_flag(files, fake):
+    config, state = files
+    run_cli(config, state)
+    fake["posts"].clear()
+    run_cli(config, state)
+    assert fake["posts"] == []
+
+
+def test_heartbeat_shows_failing_board_since_first_failure(files, fake):
+    config, state = files
+    run_cli(config, state)
+    fake["posts"].clear()
+    fake["board"] = 503
+    assert run_cli(config, state, "--heartbeat") == 1
+    (post,) = fake["posts"]
+    (card,) = post["embeds"]
+    assert card["author"]["name"] == "Acme"
+    assert card["title"].startswith("⚠️ Failing since ")
+    health = json.loads((state.parent / "health.json").read_text(encoding="utf-8"))
+    assert "failing_since" in health["greenhouse:acme"]
+
+
+def test_dry_run_writes_no_health(files, fake):
+    config, state = files
+    run_cli(config, state, "--dry-run", "--heartbeat")
+    assert not (state.parent / "health.json").exists()
+    assert fake["posts"] == []

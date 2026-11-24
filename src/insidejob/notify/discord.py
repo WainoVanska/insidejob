@@ -18,10 +18,11 @@ title can never ping anyone.
 import re
 import time
 from collections.abc import Callable
+from datetime import date
 
 import httpx
 
-from insidejob.format import detail_parts, match_dot, plural, reason_line, score_text
+from insidejob.format import detail_parts, fi_date, match_dot, plural, reason_line, score_text
 from insidejob.models import Job
 from insidejob.rank import Rank, RankedJob
 
@@ -117,6 +118,39 @@ def build_payloads(items: list[RankedJob], header: str | None = None) -> list[di
     payloads = [{"embeds": batch, "allowed_mentions": {"parse": []}} for batch in batches]
     payloads[0]["content"] = header or new_jobs_header(len(items))
     return payloads
+
+
+HEARTBEAT_MARK = "🩺"
+FAILING_COLOUR = COLOURS[1]  # red, like a weak match: something needs a look
+
+
+def heartbeat_payload(companies: int, matching: int, failing: list[tuple[str, str, date]]) -> dict:
+    """The weekly check-in, in the same style as the job alerts: an emoji header line,
+    then one red card per failing board (company as author, like a job card).
+
+    `failing` is (company, board key, failing since) for each board that failed this run.
+    """
+    header = (
+        f"{HEARTBEAT_MARK} **Weekly check-in** · {plural(companies, 'company', 'companies')}"
+        f" checked · {plural(matching, 'matching job')} open"
+    )
+    if failing:
+        header += f" · ⚠️ {plural(len(failing), 'board')} failing"
+    else:
+        header += " · all boards OK"
+    embeds = [
+        {
+            "author": {"name": _cut(company, TITLE_LIMIT)},
+            "title": f"⚠️ Failing since {fi_date(since)}",
+            "description": escape(key),
+            "color": FAILING_COLOUR,
+        }
+        for company, key, since in failing[:EMBEDS_PER_MESSAGE]
+    ]
+    payload: dict = {"content": header, "allowed_mentions": {"parse": []}}
+    if embeds:
+        payload["embeds"] = embeds
+    return payload
 
 
 class DiscordNotifier:

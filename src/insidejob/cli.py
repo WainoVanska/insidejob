@@ -28,8 +28,14 @@ from insidejob.config import (
     preset_names,
 )
 from insidejob.format import match_dot, plain, plural, reason_line, score_text
+from insidejob.health import Health, HealthError, health_path
 from insidejob.models import Job
-from insidejob.notify.discord import DiscordNotifier, top_header, welcome_header
+from insidejob.notify.discord import (
+    DiscordNotifier,
+    heartbeat_payload,
+    top_header,
+    welcome_header,
+)
 from insidejob.pipeline import RunResult, make_client, run
 from insidejob.rank import RankConfig, RankedJob, rank_jobs
 from insidejob.state import State, StateError
@@ -74,6 +80,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--dir", type=Path, default=PRESETS_DIR, help="presets folder (default: presets/)"
     )
 
+    run_cmd.add_argument(
+        "--heartbeat",
+        action="store_true",
+        help="also post the weekly check-in: companies checked, any failing boards",
+    )
+
     for cmd in (run_cmd, top_cmd, check_cmd):
         cmd.add_argument("--config", type=Path, default=Path("config.yaml"), help="config file")
     for cmd in (run_cmd, top_cmd):
@@ -112,7 +124,8 @@ def _run(args: argparse.Namespace) -> int:
     try:
         config = load_config(args.config)
         state = State.load(args.state)
-    except (ConfigError, StateError) as exc:
+        health = Health.load(health_path(args.state))
+    except (ConfigError, StateError, HealthError) as exc:
         log.error("%s", exc)
         return 2
 
@@ -123,6 +136,7 @@ def _run(args: argparse.Namespace) -> int:
         return 2
 
     today = datetime.now(UTC).date()
+    heartbeat_failed = False
     first_run = not state.boards  # nothing seen yet: this run seeds every board
     welcome_failed = False
     with make_client() as client:
@@ -152,13 +166,35 @@ def _run(args: argparse.Namespace) -> int:
                     log.error("sending the alert failed, state not saved: %s", _redact(exc))
                     return 1
             state.save(args.state)
+            _save_health(health, result, config, today, health_path(args.state))
+            if args.heartbeat:
+                # After saving: a failed check-in must never lose the job state.
+                try:
+                    DiscordNotifier(webhook, client).post(_heartbeat(result, health))
+                except Exception as exc:
+                    log.error("sending the weekly check-in failed: %s", _redact(exc))
+                    heartbeat_failed = True
 
-    if welcome_failed:
+    if welcome_failed or heartbeat_failed:
         return 1
     if result.failed:
         log.error("%d source(s) failed: %s", len(result.failed), _keys(result.failed))
         return 1
     return 0
+
+
+def _save_health(health: Health, result: RunResult, config, today: date, path: Path) -> None:
+    for r in result.sources:
+        health.record(r.source.key, ok=not r.error, today=today)
+    health.retain(s.key for s in config.sources)
+    health.save(path)
+
+
+def _heartbeat(result: RunResult, health: Health) -> dict:
+    failing = [
+        (r.source.company, r.source.key, health.failing_since(r.source.key)) for r in result.failed
+    ]
+    return heartbeat_payload(len(result.sources), len(_matched(result)), failing)
 
 
 def _top(args: argparse.Namespace) -> int:

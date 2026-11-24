@@ -15,7 +15,7 @@ You need a GitHub account and a Discord server.
 1. Click **Use this template → Create a new repository**. Private is fine.
 2. In Discord, open your channel's settings → **Integrations → Webhooks → New Webhook** and copy its URL. In your new repo, go to **Settings → Secrets and variables → Actions**, add a secret called `DISCORD_WEBHOOK_URL` and paste the URL.
 3. Edit [`config.yaml`](config.yaml) on GitHub: say what you're looking for and which companies to watch (keep the `fi-software` preset, paste job links, or both). Commit. **Actions → Check config** then shows what matches.
-4. Go to **Actions → Check for new jobs → Run workflow**. Discord gets a welcome message with your best matches, then new jobs every hour on weekdays.
+4. Go to **Actions → Check for new jobs → Run workflow**. Discord gets a welcome message with your best matches, then new jobs every hour on weekdays, plus a short check-in every Monday morning so you know it's still running.
 
 For the best jobs open right now, run **Actions → Top jobs**.
 

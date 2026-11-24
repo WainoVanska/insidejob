@@ -82,6 +82,7 @@ Don't build: all-jobs feeds (Duunitori, Työmarkkinatori), a hosted website or a
 - Exit codes: 0 ok, 1 a source or the alert failed, 2 bad config/state or no webhook.
 - `--dry-run` prints every matching job tagged seed/NEW/seen, so filters can be checked on a fresh state.
 - Jobs with an empty location pass the location filter.
+- Weekly heartbeat: Monday 05:30 UTC cron runs `run --heartbeat`, which posts a check-in after saving state (header + one red card per failing board). Board health lives in `health.json` next to `seen.json` (`last_ok`, `failing_since`; dates only), separate so the state format is unchanged. Weekly, not daily: a daily ping becomes noise.
 
 ## Adapter notes
 - Each adapter: `fetch(client, board, options)` (HTTP) + pure `parse(raw, board, company)`; optional `OPTIONS = {name: required}` validated by config. Register in `adapters/__init__.py`.

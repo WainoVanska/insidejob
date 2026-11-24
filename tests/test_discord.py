@@ -161,3 +161,28 @@ def test_failure_raises():
     client, _ = recording_client([500])
     with pytest.raises(httpx.HTTPStatusError):
         DiscordNotifier(WEBHOOK, client, sleep=lambda _: None).send(ranked(make_job()))
+
+
+def test_heartbeat_all_ok_is_just_a_header():
+    from insidejob.notify.discord import heartbeat_payload
+
+    payload = heartbeat_payload(21, 6, [])
+    assert payload["content"] == (
+        "🩺 **Weekly check-in** · 21 companies checked · 6 matching jobs open · all boards OK"
+    )
+    assert "embeds" not in payload
+    assert payload["allowed_mentions"] == {"parse": []}
+
+
+def test_heartbeat_failing_board_gets_a_red_card():
+    from datetime import date
+
+    from insidejob.notify.discord import COLOURS, heartbeat_payload
+
+    payload = heartbeat_payload(21, 6, [("KONE", "workday:kone", date(2026, 11, 18))])
+    assert payload["content"].endswith("· ⚠️ 1 board failing")
+    (card,) = payload["embeds"]
+    assert card["author"]["name"] == "KONE"
+    assert card["title"] == "⚠️ Failing since 18.11.2026"
+    assert card["description"] == "workday:kone"
+    assert card["color"] == COLOURS[1]
