@@ -1,36 +1,143 @@
-# Example insidejob config. Copy to config.yaml and edit.
+# Full reference for config.yaml: every option, with an example search for internships
+# in the Helsinki area. Copy what you need into config.yaml.
 #
-# filters: global defaults (regexes, case-insensitive)
-#   title     required  the job title must match
-#   exclude   optional  the job title must NOT match
-#   location  optional  the location must match (jobs with an empty location pass)
-#
-# sources: one entry per job board
-#   company   name shown in alerts
-#   type      adapter: greenhouse, ashby, workday, workable or rss
-#   board     where the jobs are:
-#               greenhouse  board token from boards.greenhouse.io/<board>
-#               ashby       board name from jobs.ashbyhq.com/<board>
-#               workday     career site URL without https://, e.g. acme.wd3.myworkdayjobs.com/Careers
-#               workable    account from apply.workable.com/<board>
-#               rss         feed URL without https://, e.g. acme.teamtailor.com/jobs.rss
-#   options   adapter settings; workday needs `facet`: a location name from the site's
-#             filters (e.g. Finland), so only those jobs are fetched
-#   filters   optional; each key given here REPLACES the global one for this source
+# Check your changes without sending anything: push config.yaml and open
+# Actions → Check config, or locally:  uv run insidejob check
 
-filters:
-  title: '\b(interns?|internships?|trainees?|summer|graduates?|junior)\b'
-  exclude: '\b(senior|lead|principal|staff|director|manager|head of)\b'
-  location: 'helsinki|espoo|finland|\b(eu|europe|emea)\b'
+# ── looking_for: the easy way ─────────────────────────────────────────────────────
+# Plain words. insidejob turns them into the filters and the ranking below.
+looking_for:
+  # Default: all four. Senior/lead/manager… titles are always filtered out.
+  #   intern    intern, trainee, summer job, working student, kesätyö, harjoittelija
+  #   thesis    thesis, opinnäytetyö, diplomityö
+  #   junior    junior, entry level
+  #   graduate  graduate, new grad
+  roles: [intern, thesis, junior, graduate]
 
-sources:
-  - company: RELEX Solutions
+  # Only jobs in these places pass (a job without a location always passes).
+  # Ranking: a city +3, the country +2 (Finland also matches "Suomi"), remote +1.
+  cities: [Helsinki, Espoo, Vantaa]
+  country: Finland
+  # true: remote jobs within Europe (EU, Europe, EMEA, Nordics) pass; "Remote - United
+  # States" doesn't. anywhere: every remote job passes. false or left out: no remote.
+  remote: true
+
+  # +3 when found in the title, +1.5 when only in the description. Built-in words:
+  #   graphics  rendering, OpenGL, Vulkan, shaders, GPU, 3D, game engine…
+  #   AI        machine learning, ML, LLM, deep learning, NLP, computer vision…
+  #   games     game, gaming, gameplay, Unity, Unreal…
+  #   web       frontend, full stack, React, TypeScript, JavaScript…
+  #   and mobile, backend, software, data, cloud, embedded, security, design,
+  #   marketing, sales, finance, hr, research, robotics.
+  # Any other word is matched as written. Words companies repeat in every ad (AI, data,
+  # cloud, agile, digital, innovation, automation, analytics, platform, sustainability,
+  # design) only count in the title.
+  interests: [graphics, AI, games]
+
+  # +2 when the job starts then. "summer 2027" also matches kesä 2027 and May–August
+  # 2027 in English and Finnish; spring, autumn, winter and single months work too.
+  start: summer 2027
+
+# ── companies: which job boards to watch ──────────────────────────────────────────
+# A link to any job ad or job list, "Name: link", or a full entry (below). The same
+# company listed twice is watched once. Supported links:
+#   Greenhouse  job-boards.greenhouse.io/<company>   (or boards.greenhouse.io/…)
+#   Ashby       jobs.ashbyhq.com/<company>
+#   Workable    apply.workable.com/<company>
+#   Teamtailor  <company>.teamtailor.com/jobs
+#   Job feeds   any link ending in .rss or /feed/ (e.g. careers.futurice.com/jobs.rss)
+companies:
+  # A preset: a ready-made, checked list in presets/ (fi-software: 21 Finnish software
+  # and games companies). Combine it with your own links freely.
+  # - preset: fi-software
+  - https://job-boards.greenhouse.io/wolt
+  - https://jobs.ashbyhq.com/supercell
+  - "Nitor: https://apply.workable.com/nitor"
+  - Futurice: https://careers.futurice.com/jobs.rss
+
+  # A full entry, for settings a link can't carry:
+  #   company   name shown in alerts
+  #   type      greenhouse, ashby, workable, rss or workday
+  #   board     the <company> part of the link; for rss and workday the URL without https://
+  #   options   adapter settings; workday needs `facet`: a location name from the site's
+  #             filters (e.g. Finland), so only those jobs are fetched
+  #   filters   each key given here REPLACES the global one for this company
+  - company: Example Corp
     type: greenhouse
-    board: relex
-
-  - company: Wolt
-    type: greenhouse
-    board: wolt
+    board: examplecorp
     filters:
-      # Wolt posts many city-specific roles; only watch Helsinki here.
+      # This company posts in many cities: only watch Helsinki here.
       location: 'helsinki'
+
+  # Workday sites are blocked on GitHub Actions by Workday's bot protection, so they
+  # only work when you run insidejob on your own computer.
+  # - company: Example Workday company
+  #   type: workday
+  #   board: example.wd3.myworkdayjobs.com/Careers
+  #   options: { facet: Finland }
+
+# `sources:` (the older name for this list) still works and is combined with companies.
+
+# ══ Advanced: exact rules ═════════════════════════════════════════════════════════
+# Everything below is optional. Each key you give REPLACES what looking_for generated
+# for that key (and the rest stays generated), so you can fine-tune one part only.
+
+# ── filters: which jobs count at all ───────────────────────────────────────────────
+# Regexes, case-insensitive. Single quotes keep backslashes literal in YAML.
+#   title     the job title must match (required if there's no looking_for)
+#   exclude   the job title must NOT match
+#   location  the location must match (jobs with an empty location pass)
+filters:
+  # \b = word boundary, so "intern" doesn't match "Internal" or "International".
+  # The Finnish words catch kesätyö, harjoittelija, opinnäytetyö and diplomityö.
+  title: '\b(interns?|internships?|trainees?|summer|thesis|graduates?|junior|entry[- ]level|working student)\b|kesä|harjoittel|opinnäyte|diplomityö'
+  exclude: '\b(senior|sr|lead|principal|staff|director|manager|head of)\b'
+  # "Remote" alone isn't listed, so "Remote - United States" stays out.
+  location: 'helsinki|espoo|vantaa|finland|\b(eu|europe|emea)\b'
+
+# ── rank: how jobs are ordered and coloured ───────────────────────────────────────
+# Without looking_for or rank, jobs are scored only on how junior the title is, how
+# close the deadline is, and whether they ask for 2+ years of experience.
+#
+# Each list is rules: {points, words, label}. `words` match whole words, any case
+# (a space matches any whitespace); use `match: '<regex>'` instead for more control.
+# The first matching rule wins, except for interests, where the best one wins.
+rank:
+  # looking_for gives intern 3, thesis 3, junior 2, graduate 1.
+  title:
+    - { points: 3, label: intern, words: [intern, interns, internship, trainee, traineeship, summer, thesis, working student] }
+    - { points: 2, label: junior, words: [junior, entry level, entry-level] }
+    - { points: 1, label: graduate, words: [graduate, graduates] }
+
+  # The label is the matched place when not given (e.g. "Espoo +3").
+  location:
+    - { points: 3, words: [Helsinki, Espoo, Vantaa] }
+    - { points: 2, words: [Finland] }
+    - { points: 1, words: [remote, EU, Europe, EMEA] }
+  # Points for a job without a location. looking_for gives 2 with a country (local
+  # companies rarely say where), 1 with only cities, else 0.
+  unknown_location: 2
+
+  # Full points when found in the title, half when only in the description.
+  # `title_only: true` ignores the description: for words like "AI" that company
+  # boilerplate repeats in nearly every job ad.
+  interests:
+    - { points: 3, label: graphics, words: [graphics, rendering, OpenGL, Vulkan, shaders, GPU, 3D, computer vision] }
+    - { points: 3, label: AI, title_only: true, words: [AI, LLM, LLMs, agents, machine learning] }
+    - { points: 2, label: apps & games, words: [games, game, Unity, frontend, front-end, React, mobile, web] }
+    - { points: 1, label: software, words: [software, developer, engineer, C++, Python, backend] }
+
+  start:
+    - { points: 2, label: summer 2027, words: [summer 2027, May 2027, June 2027, July 2027] }
+
+  # Days before the deadline → points (default as below).
+  deadline:
+    - { within_days: 14, points: 2 }
+    - { within_days: 30, points: 1 }
+
+  # Asking for this many years of experience or more → points (default as below).
+  experience: { min_years: 2, points: -2 }
+
+  # Colours, as a share of the best score possible (here 3+3+3+2+2 = 13):
+  # green from 65 %, yellow from 40 %, red below (default as below).
+  levels: { green: 0.65, yellow: 0.4 }

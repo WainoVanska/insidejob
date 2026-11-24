@@ -1,6 +1,14 @@
 """Small builders shared by tests."""
 
+from pathlib import Path
+
+from insidejob.config import load_config
 from insidejob.models import Job
+
+# The example ranking from config.example.yaml (Helsinki area, graphics/AI interests,
+# summer 2027; max 13 points). Tests that need location or interest rules use it, which
+# also proves the example config parses and does what its comments say.
+EXAMPLE_RANK = load_config(Path(__file__).parent.parent / "config.example.yaml").rank
 
 
 def make_job(job_id: str = "1", source: str = "greenhouse:acme", **overrides) -> Job:

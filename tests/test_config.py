@@ -2,7 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from insidejob.config import ConfigError, load_config, parse_config
+from insidejob.config import ConfigError, _rank, load_config, parse_config
+from insidejob.rank import DEFAULT_RANK
 
 ROOT = Path(__file__).parent.parent
 
@@ -15,16 +16,68 @@ def minimal(**overrides):
     return data | overrides
 
 
-def test_loads_repo_config():
+def test_loads_starter_config_from_looking_for_and_links():
     config = load_config(ROOT / "config.yaml")
-    assert len(config.sources) >= 9
-    known = {"greenhouse", "rss", "ashby", "workday", "workable"}
-    assert {source.type for source in config.sources} <= known
+    assert len(config.sources) >= 5
+    assert {source.type for source in config.sources} <= {"greenhouse", "rss", "ashby", "workable"}
+    assert ("ICEYE", "ashby:iceye") in [(s.company, s.key) for s in config.sources]
+    assert config.rank.location  # generated from cities/country/remote
+    assert config.rank.deadline == DEFAULT_RANK.deadline
 
 
 def test_loads_example_config():
     config = load_config(ROOT / "config.example.yaml")
-    assert [s.board for s in config.sources] == ["relex", "wolt"]
+    assert [s.board for s in config.sources][:2] == ["wolt", "supercell"]
+    assert [s.company for s in config.sources][2:4] == ["Nitor", "Futurice"]
+    assert config.sources[-1].filters.location.pattern == "helsinki"  # per-source override
+    assert config.rank.interests[1].title_only  # AI: title only
+    assert (config.rank.green_at, config.rank.yellow_at) == (0.65, 0.4)
+
+
+def test_words_match_whole_words_in_any_case():
+    (rule,) = _rank(
+        {"location": [{"points": 3, "words": ["Helsinki", "C++", "entry level"]}]}
+    ).location
+    assert rule.match.search("HELSINKI, Finland")
+    assert rule.match.search("Senior C++ dev")
+    assert rule.match.search("Entry  Level role")
+    assert not rule.match.search("Helsinkiläinen")
+
+
+def test_ai_word_does_not_match_inside_other_words():
+    (rule,) = _rank({"interests": [{"points": 3, "words": ["AI"]}]}).interests
+    assert rule.match.search("AI engineer")
+    assert not rule.match.search("maintain the platform")
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        {"points": 3},  # neither words nor match
+        {"points": 3, "words": ["a"], "match": "a"},  # both
+        {"points": 3, "words": []},
+        {"points": 3, "words": [1, 2]},
+    ],
+)
+def test_rule_needs_exactly_one_of_words_or_match(rule):
+    with pytest.raises(ConfigError):
+        _rank({"location": [rule]})
+
+
+def test_levels_are_shares_of_the_best_score():
+    config = _rank({"levels": {"green": 0.8, "yellow": 0.5}})
+    assert (config.green_at, config.yellow_at) == (0.8, 0.5)
+
+
+@pytest.mark.parametrize("levels", [{"green": 0.3, "yellow": 0.5}, {"green": 9}, {"blue": 1}])
+def test_bad_levels_fail(levels):
+    with pytest.raises(ConfigError):
+        _rank({"levels": levels})
+
+
+def test_old_stars_key_explains_the_new_one():
+    with pytest.raises(ConfigError, match="levels"):
+        _rank({"stars": {"three": 9, "two": 6}})
 
 
 def test_source_key_matches_job_source():
@@ -62,25 +115,16 @@ def test_optional_filters_may_be_omitted():
     ("data", "message"),
     [
         ([], "must be a mapping"),
-        (minimal(filters={}), "filters.title is required"),
+        (minimal(filters={}), "looking_for"),
         (minimal(filters={"title": "("}), "invalid regex"),
         (minimal(filters={"title": "x", "salary": "1"}), "unknown filter key"),
-        (minimal(sources=[]), "non-empty list"),
+        (minimal(sources=[]), "add the companies"),
         (minimal(sources=[{"company": "A", "type": "greenhouse"}]), "`board` is required"),
         (minimal(sources=[{"type": "greenhouse", "board": "a"}]), "`company` is required"),
         (minimal(sources=[{"company": "A", "type": "taleo", "board": "a"}]), "unknown type"),
         (
             minimal(sources=[{"company": "A", "type": "greenhouse", "board": "a", "filters": 3}]),
             "must be a mapping",
-        ),
-        (
-            minimal(
-                sources=[
-                    {"company": "A", "type": "greenhouse", "board": "a"},
-                    {"company": "B", "type": "greenhouse", "board": "a"},
-                ]
-            ),
-            "duplicate source greenhouse:a",
         ),
     ],
 )
@@ -136,3 +180,116 @@ def test_invalid_yaml(tmp_path):
     path.write_text("filters: [unclosed", encoding="utf-8")
     with pytest.raises(ConfigError, match="not valid YAML"):
         load_config(path)
+
+
+def companies(*entries):
+    return parse_config({"filters": {"title": "intern"}, "companies": list(entries)})
+
+
+def test_companies_accept_links_names_and_full_entries():
+    cfg = companies(
+        "https://jobs.ashbyhq.com/iceye",
+        "Small Giant: https://job-boards.greenhouse.io/sggcareers",
+        {"Futurice": "https://careers.futurice.com/jobs.rss"},
+        {"company": "Nitor", "type": "workable", "board": "nitor"},
+    )
+    assert [(s.company, s.key) for s in cfg.sources] == [
+        ("Iceye", "ashby:iceye"),
+        ("Small Giant", "greenhouse:sggcareers"),
+        ("Futurice", "rss:careers.futurice.com/jobs.rss"),
+        ("Nitor", "workable:nitor"),
+    ]
+    assert all(s.filters.title.pattern == "intern" for s in cfg.sources)
+
+
+def test_companies_and_sources_combine():
+    data = minimal(companies=["https://jobs.ashbyhq.com/iceye"])
+    assert [s.key for s in parse_config(data).sources] == ["ashby:iceye", "greenhouse:relex"]
+
+
+def test_the_same_board_twice_is_watched_once():
+    cfg = companies(
+        "ICEYE: https://jobs.ashbyhq.com/iceye",
+        "https://jobs.ashbyhq.com/iceye/123",
+        {"company": "Other name", "type": "ashby", "board": "iceye"},
+    )
+    assert [(s.company, s.key) for s in cfg.sources] == [("ICEYE", "ashby:iceye")]
+
+
+def test_bad_company_link_names_the_entry():
+    with pytest.raises(ConfigError, match=r"companies\[1\]: .*isn't a supported job site"):
+        companies("https://jobs.ashbyhq.com/iceye", "https://www.linkedin.com/jobs/view/1")
+
+
+def test_companies_must_be_a_list():
+    with pytest.raises(ConfigError, match="companies must be a list"):
+        parse_config({"filters": {"title": "x"}, "companies": "https://jobs.ashbyhq.com/a"})
+
+
+def test_preset_expands_and_merges_with_own_links(tmp_path):
+    presets = tmp_path / "presets"
+    presets.mkdir()
+    (presets / "fi-test.yaml").write_text(
+        "name: Test\ncompanies:\n"
+        "  - 'Wolt: https://job-boards.greenhouse.io/wolt'\n"
+        "  - { company: Nitor, type: workable, board: nitor }\n",
+        encoding="utf-8",
+    )
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        "filters: {title: intern}\n"
+        "companies:\n"
+        "  - 'Wolt Oy: https://job-boards.greenhouse.io/wolt'\n"  # listed first: wins
+        "  - preset: fi-test\n"
+        "  - https://jobs.ashbyhq.com/iceye\n",
+        encoding="utf-8",
+    )
+    cfg = load_config(config)  # presets/ next to the config is used
+    assert [(s.company, s.key) for s in cfg.sources] == [
+        ("Wolt Oy", "greenhouse:wolt"),
+        ("Nitor", "workable:nitor"),
+        ("Iceye", "ashby:iceye"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("entry", "message"),
+    [
+        ({"preset": "nope"}, "unknown preset 'nope' .*fi-software"),
+        ({"preset": "../config"}, "preset must be a name"),
+        ({"preset": "fi-software", "board": "x"}, "on its own line"),
+    ],
+)
+def test_bad_preset_explains(entry, message):
+    with pytest.raises(ConfigError, match=message):
+        parse_config({"filters": {"title": "x"}, "companies": [entry]})
+
+
+def test_presets_cannot_nest(tmp_path):
+    (tmp_path / "a.yaml").write_text("companies: [{preset: b}]\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="can't include presets"):
+        parse_config(
+            {"filters": {"title": "x"}, "companies": [{"preset": "a"}]}, presets_dir=tmp_path
+        )
+
+
+def test_shipped_presets_are_valid_and_have_no_workday():
+    from insidejob.config import preset_names
+
+    for name in preset_names():
+        cfg = parse_config({"filters": {"title": "x"}, "companies": [{"preset": name}]})
+        assert len(cfg.sources) >= 5, name
+        assert "workday" not in {s.type for s in cfg.sources}, name
+
+
+def test_fi_software_keeps_the_verified_board_keys():
+    """Same keys as hand-written entries, so switching to the preset never re-seeds."""
+    cfg = parse_config({"filters": {"title": "x"}, "companies": [{"preset": "fi-software"}]})
+    keys = {s.key for s in cfg.sources}
+    assert len(keys) == 21
+    assert {
+        "greenhouse:supermetricsoy",
+        "rss:vincitoyj.teamtailor.com/jobs.rss",
+        "rss:gofore.com/en/careers/feed/",
+        "workable:varjo-1",
+    } <= keys

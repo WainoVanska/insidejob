@@ -1,0 +1,53 @@
+name: Check presets
+
+# Weekly maintenance for the presets in presets/: fetch every company's job board once
+# and open an issue (or comment on the open one) when a board stops answering, e.g.
+# because a company moved to another hiring system. Only runs in the main repo, not in
+# copies of the template.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: insidejob-presets
+  cancel-in-progress: false
+
+jobs:
+  presets:
+    if: github.repository == 'WainoVanska/insidejob'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --locked --no-dev
+
+      - name: Ping every preset board
+        id: ping
+        continue-on-error: true
+        run: uv run --no-sync insidejob presets --report report.md
+
+      - name: Report failures as an issue
+        if: steps.ping.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Preset check: some company job boards failed"
+        run: |
+          [ -f report.md ] || echo "The preset check crashed: see ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > report.md
+          open=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number --jq '.[0].number // empty')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body-file report.md
+          else
+            gh issue create --title "$TITLE" --body-file report.md
+          fi
+          exit 1

@@ -55,6 +55,16 @@ class State:
     def knows(self, source: str) -> bool:
         return source in self.boards
 
+    def first_seen(self, job: Job) -> date | None:
+        """When `job` was first recorded, or None if it isn't in the state."""
+        entry = self.boards.get(job.source, {}).get(job.id.removeprefix(f"{job.source}:"))
+        if not entry or "first_seen" not in entry:
+            return None
+        try:
+            return date.fromisoformat(entry["first_seen"])
+        except ValueError:
+            return None
+
     def update(self, source: str, jobs: Iterable[Job], today: date) -> set[str]:
         """Record `jobs` as seen today and return the ids of jobs that are new.
 

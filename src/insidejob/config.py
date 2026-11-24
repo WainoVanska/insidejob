@@ -1,6 +1,18 @@
 """Load and validate `config.yaml`.
 
-Shape:
+The easy shape (see `profile.py` and `links.py`):
+
+    looking_for: {roles: [intern], cities: [Helsinki], interests: [graphics]}
+    companies:
+      - https://jobs.ashbyhq.com/iceye            # a job or board link
+      - "Small Giant: https://job-boards.greenhouse.io/sggcareers"
+      - { company: Nitor, type: workable, board: nitor }   # a full entry, as below
+
+`looking_for` generates `filters` and `rank`; any key given explicitly below replaces
+the generated one. `sources:` is the older name of `companies:` (both are combined),
+and the same board listed twice is watched once.
+
+Full shape:
 
     filters:                      # global defaults
       title: "<regex>"            # required: job title must match
@@ -14,6 +26,18 @@ Shape:
           location: "..."
         options:                  # optional: adapter-specific settings (see each adapter's OPTIONS)
           facet: Finland
+    rank:                         # optional: how new jobs are ordered (defaults: rank.DEFAULT_RANK)
+      title: [{points: 3, words: [intern, trainee], label: intern}, ...]
+      location: [{points: 3, words: [Helsinki, Espoo]}, ...]   # first match wins
+      interests: [...]            # best tier wins; half points if only in the description;
+                                  # a rule with `title_only: true` ignores the description
+      start: [{points: 2, words: [summer 2027], label: summer 2027}]
+      unknown_location: 0
+      deadline: [{within_days: 14, points: 2}, ...]
+      levels: {green: 0.65, yellow: 0.4}       # share of the best score possible
+      experience: {min_years: 2, points: -2}   # asks for 2+ years of experience
+
+A rule matches with `words` (a list, whole words, no regex needed) or `match` (a regex).
 
 All regexes are case-insensitive. Problems raise `ConfigError` with a message that
 points at the offending entry, so a bad config fails fast instead of silently matching
@@ -21,15 +45,25 @@ nothing.
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from insidejob import profile
 from insidejob.adapters import ADAPTERS
+from insidejob.links import LinkError, parse_link
+from insidejob.profile import ProfileError
+from insidejob.rank import DEFAULT_RANK, DeadlineRule, RankConfig, Rule, words_pattern
 
 FILTER_KEYS = ("title", "exclude", "location")
+RANK_RULE_KEYS = ("title", "location", "interests", "start")
+RANK_KEYS = (*RANK_RULE_KEYS, "unknown_location", "deadline", "levels", "experience")
+SOURCE_KEYS = ("company", "type", "board", "filters", "options")
+# Ready-made company lists (`- preset: fi-software`). A `presets/` folder next to the
+# config file wins, so a copy of the template can keep its own; else the repo's own.
+PRESETS_DIR = Path(__file__).resolve().parents[2] / "presets"
 
 
 class ConfigError(ValueError):
@@ -60,6 +94,7 @@ class Source:
 @dataclass(frozen=True)
 class Config:
     sources: list[Source]
+    rank: RankConfig = DEFAULT_RANK
 
 
 def load_config(path: Path) -> Config:
@@ -71,31 +106,223 @@ def load_config(path: Path) -> Config:
         data = yaml.safe_load(text)
     except yaml.YAMLError as exc:
         raise ConfigError(f"{path} is not valid YAML: {exc}") from exc
-    return parse_config(data)
+    local = path.parent / "presets"
+    return parse_config(data, presets_dir=local if local.is_dir() else PRESETS_DIR)
 
 
-def parse_config(data: Any) -> Config:
+def preset_names(presets_dir: Path = PRESETS_DIR) -> list[str]:
+    return sorted(p.stem for p in presets_dir.glob("*.yaml"))
+
+
+def _preset(raw: dict[str, Any], where: str, presets_dir: Path) -> list[tuple[Any, str]]:
+    """`{preset: fi-software}` -> the entries of presets/fi-software.yaml."""
+    if len(raw) != 1:
+        raise ConfigError(f"{where}: write a preset on its own line, e.g. `- preset: fi-software`")
+    name = raw["preset"]
+    available = ", ".join(preset_names(presets_dir)) or "none"
+    if not isinstance(name, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]*", name):
+        raise ConfigError(
+            f"{where}: preset must be a name like fi-software (available: {available})"
+        )
+    path = presets_dir / f"{name}.yaml"
+    if not path.is_file():
+        raise ConfigError(f"{where}: unknown preset {name!r} (available: {available})")
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise ConfigError(f"presets/{name}.yaml can't be read: {exc}") from exc
+    companies = data.get("companies") if isinstance(data, dict) else None
+    if not isinstance(companies, list) or not companies:
+        raise ConfigError(f"presets/{name}.yaml needs a non-empty `companies:` list")
+    entries = []
+    for i, entry in enumerate(companies):
+        if isinstance(entry, dict) and "preset" in entry:
+            raise ConfigError(f"presets/{name}.yaml companies[{i}]: presets can't include presets")
+        entries.append((entry, f"preset {name}: companies[{i}]"))
+    return entries
+
+
+def parse_config(data: Any, *, presets_dir: Path = PRESETS_DIR) -> Config:
     if not isinstance(data, dict):
-        raise ConfigError("config must be a mapping with `filters` and `sources`")
+        raise ConfigError("config must be a mapping with `looking_for` and `companies`")
 
-    global_raw = _mapping(data.get("filters"), "filters")
+    generated: dict[str, dict[str, Any]] = {"filters": {}, "rank": {}}
+    if data.get("looking_for") is not None:
+        try:
+            generated = profile.build(data["looking_for"])
+        except ProfileError as exc:
+            raise ConfigError(f"looking_for: {exc}") from exc
+
+    # Explicit `filters:` / `rank:` keys replace the generated ones, key by key.
+    global_raw = generated["filters"] | _mapping(data.get("filters"), "filters")
     if "title" not in global_raw:
-        raise ConfigError("filters.title is required")
+        raise ConfigError(
+            "say which jobs you want: add a `looking_for:` block "
+            "(or filters.title, a regex the job title must match)"
+        )
     _filters(global_raw, "filters")  # validate the globals even if every source overrides them
 
-    raw_sources = data.get("sources")
-    if not isinstance(raw_sources, list) or not raw_sources:
-        raise ConfigError("sources must be a non-empty list")
+    entries: list[tuple[Any, str]] = []
+    for key in ("companies", "sources"):
+        raw_list = data.get(key)
+        if raw_list is None:
+            continue
+        if not isinstance(raw_list, list):
+            raise ConfigError(f"{key} must be a list (one company per line, starting with -)")
+        for i, raw in enumerate(raw_list):
+            if isinstance(raw, dict) and "preset" in raw:
+                entries += _preset(raw, f"{key}[{i}]", presets_dir)
+            else:
+                entries.append((raw, f"{key}[{i}]"))
+    if not entries:
+        raise ConfigError("add the companies to watch under `companies:` (job board links)")
 
-    sources: list[Source] = []
-    seen: set[str] = set()
-    for i, raw in enumerate(raw_sources):
-        source = _source(raw, f"sources[{i}]", global_raw)
-        if source.key in seen:
-            raise ConfigError(f"sources[{i}]: duplicate source {source.key}")
-        seen.add(source.key)
-        sources.append(source)
-    return Config(sources=sources)
+    # The same board listed twice (e.g. as a link and in a preset) is watched once:
+    # the first entry wins.
+    sources: dict[str, Source] = {}
+    for raw, where in entries:
+        source = _company(raw, where, global_raw)
+        sources.setdefault(source.key, source)
+
+    rank_raw = generated["rank"] | _mapping(data.get("rank"), "rank")
+    return Config(sources=list(sources.values()), rank=_rank(rank_raw))
+
+
+def _company(raw: Any, where: str, global_raw: dict[str, Any]) -> Source:
+    """One `companies:` entry: a link, `Name: link`, or {company, type, board, ...}."""
+    if isinstance(raw, str):
+        name, link = _split_name(raw)
+        return _from_link(link, name, where, global_raw)
+    if isinstance(raw, dict) and len(raw) == 1:
+        ((name, link),) = raw.items()
+        if name not in SOURCE_KEYS and isinstance(link, str):  # `- Wolt: <link>` in YAML
+            return _from_link(link, str(name), where, global_raw)
+    return _source(raw, where, global_raw)
+
+
+def _split_name(text: str) -> tuple[str | None, str]:
+    """'Wolt: https://…' -> ('Wolt', 'https://…'); a bare link has no name."""
+    if m := re.fullmatch(r"\s*([^:/]+?)\s*:\s+(\S+)\s*", text):
+        return m.group(1), m.group(2)
+    return None, text
+
+
+def _from_link(link: str, name: str | None, where: str, global_raw: dict[str, Any]) -> Source:
+    try:
+        found = parse_link(link)
+    except LinkError as exc:
+        raise ConfigError(f"{where}: {exc}") from exc
+    return Source(
+        company=(name or "").strip() or found.company,
+        type=found.type,
+        board=found.board,
+        filters=_filters(global_raw, f"{where}.filters"),
+    )
+
+
+def _rank(value: Any) -> RankConfig:
+    """`rank:` is optional; each key given replaces that part of DEFAULT_RANK."""
+    raw = _mapping(value, "rank")
+    if "stars" in raw:
+        raise ConfigError(
+            "rank.stars was replaced by rank.levels: {green: 0.65, yellow: 0.4}, "
+            "the share of the best score possible (e.g. 9 of 13 points = 0.69)"
+        )
+    unknown = set(raw) - set(RANK_KEYS)
+    if unknown:
+        raise ConfigError(
+            f"rank: unknown key(s) {sorted(unknown)} (allowed: {', '.join(RANK_KEYS)})"
+        )
+
+    parts: dict[str, Any] = {}
+    for key in RANK_RULE_KEYS:
+        if key in raw:
+            parts[key] = _rules(raw[key], f"rank.{key}")
+    if "unknown_location" in raw:
+        parts["unknown_location"] = _number(raw["unknown_location"], "rank.unknown_location")
+    if "deadline" in raw:
+        parts["deadline"] = _deadlines(raw["deadline"], "rank.deadline")
+    if "levels" in raw:
+        levels = _mapping(raw["levels"], "rank.levels")
+        if set(levels) - {"green", "yellow"}:
+            raise ConfigError("rank.levels: only `green` and `yellow` are allowed")
+        green = _number(levels.get("green", DEFAULT_RANK.green_at), "rank.levels.green")
+        yellow = _number(levels.get("yellow", DEFAULT_RANK.yellow_at), "rank.levels.yellow")
+        if not 0 <= yellow <= green <= 1:
+            raise ConfigError(
+                "rank.levels: need 0 <= yellow <= green <= 1 "
+                "(shares of the best score possible, e.g. green: 0.65)"
+            )
+        parts["green_at"], parts["yellow_at"] = green, yellow
+    if "experience" in raw:
+        experience = _mapping(raw["experience"], "rank.experience")
+        if set(experience) - {"min_years", "points"}:
+            raise ConfigError("rank.experience: only `min_years` and `points` are allowed")
+        if "min_years" in experience:
+            years = _number(experience["min_years"], "rank.experience.min_years")
+            parts["experience_years"] = int(years)
+        if "points" in experience:
+            parts["experience_points"] = _number(experience["points"], "rank.experience.points")
+
+    return replace(DEFAULT_RANK, **parts)
+
+
+def _rules(value: Any, where: str) -> tuple[Rule, ...]:
+    if not isinstance(value, list):
+        raise ConfigError(f"{where} must be a list of {{points, words, label}}")
+    rules = []
+    for i, item in enumerate(value):
+        item = _mapping(item, f"{where}[{i}]")
+        if set(item) - {"points", "words", "match", "label", "title_only"}:
+            raise ConfigError(
+                f"{where}[{i}]: only `points`, `words`, `match`, `label` and `title_only`"
+                " are allowed"
+            )
+        pattern = _rule_pattern(item, f"{where}[{i}]")
+        label = item.get("label", "")
+        if not isinstance(label, str):
+            raise ConfigError(f"{where}[{i}].label must be a string")
+        title_only = item.get("title_only", False)
+        if not isinstance(title_only, bool):
+            raise ConfigError(f"{where}[{i}].title_only must be true or false")
+        points = _number(item.get("points"), f"{where}[{i}].points")
+        rules.append(Rule(points, pattern, label, title_only))
+    return tuple(rules)
+
+
+def _rule_pattern(item: dict[str, Any], where: str) -> re.Pattern[str]:
+    """A rule matches with `words` (plain list) or `match` (regex): exactly one of them."""
+    if ("words" in item) == ("match" in item):
+        raise ConfigError(f"{where}: give either `words` (a list) or `match` (a regex)")
+    if "match" in item:
+        return _regex(item["match"], f"{where}.match", required=True)
+    words = item["words"]
+    if isinstance(words, str):
+        words = [words]
+    if not isinstance(words, list) or not words or not all(isinstance(w, str) for w in words):
+        raise ConfigError(f"{where}.words must be a list of words, e.g. [Helsinki, Espoo]")
+    if not any(w.strip() for w in words):
+        raise ConfigError(f"{where}.words is empty")
+    return words_pattern(words)
+
+
+def _deadlines(value: Any, where: str) -> tuple[DeadlineRule, ...]:
+    if not isinstance(value, list):
+        raise ConfigError(f"{where} must be a list of {{within_days, points}}")
+    rules = []
+    for i, item in enumerate(value):
+        item = _mapping(item, f"{where}[{i}]")
+        days = item.get("within_days")
+        if not isinstance(days, int) or isinstance(days, bool) or days < 0:
+            raise ConfigError(f"{where}[{i}].within_days must be a whole number of days")
+        rules.append(DeadlineRule(days, _number(item.get("points"), f"{where}[{i}].points")))
+    return tuple(rules)
+
+
+def _number(value: Any, where: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ConfigError(f"{where} must be a number")
+    return float(value)
 
 
 def _source(raw: Any, where: str, global_raw: dict[str, Any]) -> Source:

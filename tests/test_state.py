@@ -107,3 +107,12 @@ def test_corrupt_file_is_an_error(tmp_path, text):
     path.write_text(text, encoding="utf-8")
     with pytest.raises(StateError):
         State.load(path)
+
+
+def test_first_seen():
+    state = State(
+        {"greenhouse:acme": {"1": {"first_seen": "2026-11-01", "last_seen": "2026-11-18"}}}
+    )
+    assert state.first_seen(make_job("1")) == date(2026, 11, 1)
+    assert state.first_seen(make_job("2")) is None
+    assert state.first_seen(make_job("1", source="ashby:other")) is None

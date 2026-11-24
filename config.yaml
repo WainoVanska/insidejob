@@ -1,59 +1,35 @@
-# insidejob config: which boards to watch and which jobs to alert on.
-# Sources and how they were verified: docs/sources.md.
-# Regexes are case-insensitive. Single quotes keep backslashes literal in YAML.
+# Your insidejob settings. Edit them right here on GitHub (the pencil icon), then
+# "Commit changes". The "Check config" action then shows the companies, how many jobs
+# match and your top 5, under Actions → Check config → Summary. Nothing is sent.
+#
+# Lines starting with # are notes and are ignored. config.example.yaml explains every
+# option, including the advanced ones.
 
-filters:
-  # The job title must match. \b keeps "intern" from matching "Internal"/"International".
-  title: '\b(interns?|internships?|trainees?|traineeship|summer|thesis|graduates?|junior|entry[- ]level|working student|apprentice(ship)?)\b|kesä|harjoittel|opinnäyte|diplomityö'
-  # ...and must not match. Applied to the title only.
-  exclude: '\b(senior|sr|lead|principal|staff|director|manager|head of|vp|vice president|chief)\b'
-  # Location must match. Jobs with an empty location pass.
-  location: 'finland|suomi|helsinki|espoo|vantaa|\b(eu|europe|emea|nordics?)\b'
+# ── What you're looking for ───────────────────────────────────────────────────────
+looking_for:
+  # Which jobs count. Remove the ones you don't want. Senior roles are always left out.
+  roles: [intern, thesis, junior, graduate]
+  # Where. Jobs in these cities rank highest, then the country, then remote.
+  cities: [Helsinki, Espoo, Vantaa]
+  country: Finland
+  # true = remote jobs within Europe count too; anywhere = any remote job; false = none.
+  remote: true
+  # What you like, in plain words. Built in: graphics, AI, games, web, mobile, backend,
+  # software, data, cloud, embedded, security, design, marketing, sales, finance, hr,
+  # research, robotics. Any other word is matched as written (e.g. Rust, fintech).
+  interests: [software, web]
+  # When you can start: a season or month, e.g. summer 2027, autumn 2027, June 2027.
+  # Delete the line if any time is fine.
+  start: summer 2027
 
-sources:
-  # Greenhouse: https://boards-api.greenhouse.io/v1/boards/<board>/jobs
-  - { company: Smartly, type: greenhouse, board: smartlyio }
-  - { company: Wolt, type: greenhouse, board: wolt }
-  - { company: Housemarque, type: greenhouse, board: housemarque }
-  - { company: RELEX Solutions, type: greenhouse, board: relex }
-  - { company: Qt Group, type: greenhouse, board: theqtcompany }
-  - { company: Oura, type: greenhouse, board: oura }
-  - { company: Supermetrics, type: greenhouse, board: supermetricsoy }
-  - { company: Solita, type: greenhouse, board: solita }
-  - { company: Small Giant, type: greenhouse, board: sggcareers }
-
-  # RSS: the feed URL without https://. Teamtailor = jobs page + ".rss".
-  - { company: Futurice, type: rss, board: careers.futurice.com/jobs.rss }
-  - { company: Kuva Space, type: rss, board: careers.kuvaspace.com/jobs.rss }
-  - { company: HypeHype, type: rss, board: hypehype.teamtailor.com/jobs.rss }
-  - { company: Siili, type: rss, board: siili.teamtailor.com/jobs.rss }
-  - { company: Vincit, type: rss, board: vincitoyj.teamtailor.com/jobs.rss }
-
-  # Ashby: https://api.ashbyhq.com/posting-api/job-board/<board>
-  - { company: ICEYE, type: ashby, board: iceye }
-  - { company: Supercell, type: ashby, board: supercell }
-  - { company: Reaktor, type: ashby, board: reaktor }
-
-  # Workday: DISABLED. Workday's Cloudflare answers 429 to GitHub Actions runners on the
-  # very first request (2026-11-18), while the same request from a home connection gets
-  # 200. We don't work around bot protection, so these stay off in the hosted run.
-  # The adapter still works locally: uncomment and use `insidejob run --dry-run`.
-  # For alerts, create a job alert on the career site itself (email).
-  #
-  # The career site URL without https://. `facet` narrows to one location server-side.
-  # - company: NVIDIA
-  #   type: workday
-  #   board: nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite
-  #   options: { facet: Finland }
-  # - company: KONE
-  #   type: workday
-  #   board: kone.wd3.myworkdayjobs.com/Careers
-  #   options: { facet: Finland }
-
-  # Workable: the account slug from apply.workable.com/<board>
-  - { company: Varjo, type: workable, board: varjo-1 }
-  - { company: Nitor, type: workable, board: nitor }
-
-  # WordPress job feeds (newest ~10 posts only, which is enough for new-job alerts).
-  - { company: Gofore, type: rss, board: gofore.com/en/careers/feed/ }
-  - { company: Rovio, type: rss, board: www.rovio.com/open-positions/feed/ }
+# ── Companies to watch ────────────────────────────────────────────────────────────
+# A preset is a ready-made list: fi-software = 21 Finnish software and games companies
+# (see presets/fi-software.yaml). Remove the line to pick every company yourself.
+#
+# Add your own: paste the link of any job ad (or the job list) from a company's careers
+# page. Works with Greenhouse, Ashby, Workable and Teamtailor, and job feeds ending in
+# .rss. Write "Name: link" to choose the name shown in alerts. A company that's already
+# in the preset is simply watched once.
+companies:
+  - preset: fi-software
+  # - "Acme: https://job-boards.greenhouse.io/acme"
