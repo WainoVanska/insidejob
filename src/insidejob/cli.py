@@ -112,7 +112,9 @@ def _save_health(health: Health, result: RunResult, config, today, path: Path) -
 
 
 def _heartbeat(result: RunResult, health: Health) -> str:
-    failing = [(r.source.key, health.failing_since(r.source.key)) for r in result.failed]
+    failing = [
+        (r.source.company, r.source.key, health.failing_since(r.source.key)) for r in result.failed
+    ]
     matching = sum(len(s.matched) for s in result.sources)
     return build_heartbeat(len(result.sources), matching, failing)
 

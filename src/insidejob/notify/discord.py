@@ -56,18 +56,22 @@ def build_messages(jobs: list[Job], limit: int = MESSAGE_LIMIT) -> list[str]:
     return messages
 
 
-def build_heartbeat(boards: int, matching: int, failing: list[tuple[str, date]]) -> str:
-    """The weekly "still alive" message.
+def build_heartbeat(boards: int, matching: int, failing: list[tuple[str, str, date]]) -> str:
+    """The weekly "still alive" message, styled like the job digest.
 
-    `failing` is (board key, failing since) for each board that failed this run.
+    A bold header, then one block per failing board in the same two-line shape as a
+    job: `**Company** – ...` and a detail line. `failing` is (company, board key,
+    failing since) for each board that failed this run.
     """
-    lines = [
-        "**insidejob weekly check-in**",
-        f"{boards} boards checked · {len(failing)} failed · {matching} matching jobs open",
-    ]
-    for key, since in failing:
-        lines.append(f"⚠ {escape(key)} failing since {since.day}.{since.month}.")
-    return "\n".join(lines)
+    summary = " · ".join(
+        [f"{boards} boards checked", f"{len(failing)} failed", f"{matching} matching jobs open"]
+    )
+    blocks = [f"**Weekly check-in**\n{summary}"]
+    for company, key, since in failing:
+        blocks.append(
+            f"**{escape(company)}** – failing since {since.day}.{since.month}.\n{escape(key)}"
+        )
+    return "\n\n".join(blocks)
 
 
 class DiscordNotifier:

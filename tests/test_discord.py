@@ -122,7 +122,9 @@ def test_heartbeat_message():
 
     from insidejob.notify.discord import build_heartbeat
 
-    text = build_heartbeat(21, 6, [("workday:kone", date(2026, 11, 18))])
-    assert "21 boards checked · 1 failed · 6 matching jobs open" in text
-    assert "⚠ workday:kone failing since 18.11." in text
+    text = build_heartbeat(21, 6, [("KONE", "workday:kone", date(2026, 11, 18))])
+    assert text == (
+        "**Weekly check-in**\n21 boards checked · 1 failed · 6 matching jobs open"
+        "\n\n**KONE** – failing since 18.11.\nworkday:kone"
+    )
     assert build_heartbeat(21, 0, []).count("\n") == 1
