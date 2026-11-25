@@ -10,6 +10,11 @@ on:
     # not "broken". Must match the schedule check in the run step.
     - cron: "30 5 * * 1"
   workflow_dispatch:
+    inputs:
+      heartbeat:
+        description: "Also send the weekly check-in now (to see what it looks like)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write # push the updated seen.json to the `state` branch
@@ -69,7 +74,7 @@ jobs:
       - name: Run insidejob
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          HEARTBEAT: ${{ github.event.schedule == '30 5 * * 1' && '--heartbeat' || '' }}
+          HEARTBEAT: ${{ (github.event.schedule == '30 5 * * 1' || inputs.heartbeat) && '--heartbeat' || '' }}
         run: uv run --no-sync insidejob run --config config.yaml --state state/seen.json $HEARTBEAT
 
       # Runs even if a source failed (exit 1): the other sources' state must still be
