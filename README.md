@@ -42,6 +42,15 @@ My CV:
 
 Every option is explained in [`config.example.yaml`](config.example.yaml). Prefer to fork instead of using the template? That works too, but forks are public.
 
+## Get updates
+
+Your copy doesn't update itself. To get new features as a pull request every Monday:
+
+1. Create a [fine-grained token](https://github.com/settings/personal-access-tokens/new) for your copy only, with **Contents**, **Pull requests**, **Issues** and **Workflows** set to *Read and write*.
+2. Add it to your copy as a secret called `SYNC_TOKEN` (same place as the webhook).
+
+**Actions → Get updates** then opens a pull request with the latest code. Your `config.yaml` is never changed. Merge it when CI is green.
+
 ## How it was built
 
 The idea, the requirements and the design decisions are mine. I wrote the code with Claude Code, an AI coding assistant, and every pull request explains why a change was made.
