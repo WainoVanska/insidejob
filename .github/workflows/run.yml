@@ -64,7 +64,7 @@ jobs:
             git -C state switch --orphan state
           fi
 
-      - uses: astral-sh/setup-uv@v10.3.3
+      - uses: astral-sh/setup-uv@v10.4.0
         with:
           enable-cache: true
 
