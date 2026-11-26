@@ -51,6 +51,21 @@ Your copy doesn't update itself. To get new features as a pull request every Mon
 
 **Actions → Get updates** then opens a pull request with the latest code. Your `config.yaml` is never changed. Merge it when CI is green.
 
+## Run it locally
+
+```sh
+uv sync
+uv run insidejob check            # validate config.yaml, show matches
+uv run insidejob run --dry-run    # fetch and print, send nothing
+uv run pytest
+```
+
+To send alerts locally, put `DISCORD_WEBHOOK_URL=...` in a `.env` file.
+
+## Tech
+
+Python 3.11, httpx, PyYAML, pytest, ruff, uv. Runs on GitHub Actions; job history is kept on a `state` branch. Reads Greenhouse, Ashby, Workable and Teamtailor APIs and RSS feeds.
+
 ## How it was built
 
 The idea, the requirements and the design decisions are mine. I wrote the code with Claude Code, an AI coding assistant, and every pull request explains why a change was made.
