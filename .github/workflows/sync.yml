@@ -54,14 +54,16 @@ jobs:
           out=$(bash .github/scripts/sync-upstream.sh)
           echo "result=$(tail -n 1 <<< "$out")" >> "$GITHUB_OUTPUT"
 
+      # Every gh call names this repo: the script adds an `upstream` remote, and gh
+      # would otherwise pick that one and try to open the PR in insidejob itself.
       - name: Open or update the pull request
         if: steps.merge.outputs.result == 'ready'
         env:
           GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
           git push --force --quiet origin sync/upstream
-          if [ -z "$(gh pr list --head sync/upstream --state open --json number -q '.[].number')" ]; then
-            gh pr create --head sync/upstream --base main \
+          if [ -z "$(gh pr list --repo "$GITHUB_REPOSITORY" --head sync/upstream --state open --json number -q '.[].number')" ]; then
+            gh pr create --repo "$GITHUB_REPOSITORY" --head sync/upstream --base main \
               --title "Update from insidejob" \
               --body "The latest code from [insidejob](https://github.com/WainoVanska/insidejob). Your \`config.yaml\` is unchanged. Merge when CI is green. This PR updates itself until you merge it."
           else
@@ -74,11 +76,11 @@ jobs:
           GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
           title="Update from insidejob needs a hand"
-          if [ -n "$(gh issue list --state open --search "in:title \"$title\"" --json number -q '.[].number')" ]; then
+          if [ -n "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$title\"" --json number -q '.[].number')" ]; then
             echo "Conflict issue already open."
             exit 0
           fi
-          gh issue create --title "$title" --body "The latest insidejob code conflicts with changes in this copy, so no pull request was opened. On your computer:
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "The latest insidejob code conflicts with changes in this copy, so no pull request was opened. On your computer:
 
           \`\`\`sh
           git remote add upstream https://github.com/WainoVanska/insidejob.git
