@@ -48,7 +48,11 @@ jobs:
       - name: Merge upstream
         id: merge
         if: steps.token.outputs.ready == 'true'
-        run: echo "result=$(bash .github/scripts/sync-upstream.sh | tail -1)" >> "$GITHUB_OUTPUT"
+        # Assign first: inside `echo "$(...)"` a failing script would be ignored and
+        # the run would look green. With `bash -e` the assignment itself fails the step.
+        run: |
+          out=$(bash .github/scripts/sync-upstream.sh)
+          echo "result=$(tail -n 1 <<< "$out")" >> "$GITHUB_OUTPUT"
 
       - name: Open or update the pull request
         if: steps.merge.outputs.result == 'ready'
